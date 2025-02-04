@@ -1,16 +1,8 @@
 openapi: 3.0.0
 info:
-  title: 광고 관리 API
-  description: 광고 및 스케줄 관리를 위한 API 문서
+  title: 광고 API
+  description: 광고 조회를 위한 API 문서
   version: 1.0.0
-
-servers:
-  - url: http://localhost:3000
-    description: 개발 서버
-
-tags:
-  - name: ads
-    description: 광고 관리 관련 엔드포인트
 
 paths:
   /api/ads:
@@ -254,6 +246,64 @@ paths:
 
 components:
   schemas:
+    Ad:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 광고 ID
+        type:
+          type: string
+          description: 광고 타입
+        url:
+          type: string
+          description: 광고 URL 
+        duration:
+          type: integer
+          description: 광고 재생 시간(초)
+      required:
+        - id
+        - type
+        - url
+        - duration
+  
+    AdCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 카테고리 ID
+        name:
+          type: string
+          description: 카테고리 이름
+        description:
+          type: string
+          description: 카테고리 설명
+      required:
+        - id
+        - name
+
+    AdSchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 스케줄 ID
+        ad_id:
+          type: integer
+          description: 광고 ID
+        time:
+          type: string
+          format: time
+          description: 광고 노출 시간 (HH:00 형식)
+        is_active:
+          type: boolean
+          description: 활성화 여부
+      required:
+        - id
+        - ad_id
+        - time
+
     Error:
       type: object
       properties:

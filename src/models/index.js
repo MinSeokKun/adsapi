@@ -2,6 +2,7 @@ const sequelize = require('../config/database');
 const AdCategory = require('./adCategory');
 const Ad = require('./ad');
 const AdSchedule = require('./adSchedule');
+const User = require('./user');  // User 모델 추가
 
 // 기존 관계 설정
 AdCategory.hasMany(Ad, {
@@ -11,7 +12,6 @@ Ad.belongsTo(AdCategory, {
   foreignKey: 'ad_category_id'
 });
 
-// 새로운 관계 설정
 Ad.hasMany(AdSchedule, {
   foreignKey: 'ad_id'
 });
@@ -22,8 +22,8 @@ AdSchedule.belongsTo(Ad, {
 // 모델 동기화
 const syncModels = async () => {
   try {
-    // await sequelize.sync({ force: true }); // 테이블 재생성
     await sequelize.sync(); // 테이블 생성
+    // await sequelize.sync({ alter: true }); // 테이블 재생성
     console.log('모델 동기화 완료');
   } catch (error) {
     console.error('모델 동기화 실패:', error);
@@ -35,5 +35,6 @@ module.exports = {
   AdCategory,
   Ad,
   AdSchedule,
+  User,
   syncModels
 };
