@@ -29,11 +29,45 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// 스웨거 문서 로드
+const loadSwaggerDocument = () => {
+  try {
+    // 메인 Swagger 파일 로드
+    const mainDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/main.yaml'), 'utf8')
+    );
+
+    // 각 참조된 파일들을 로드하고 병합
+    const authDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/auth.yaml'), 'utf8')
+    );
+    const adsDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/ads.yaml'), 'utf8')
+    );
+
+    // paths와 schemas 병합
+    mainDoc.paths = {
+      ...mainDoc.paths,
+      ...authDoc.paths,
+      ...adsDoc.paths
+    };
+
+    mainDoc.components.schemas = {
+      ...mainDoc.components.schemas,
+      ...authDoc.components.schemas,
+      ...adsDoc.components.schemas
+    };
+
+    return mainDoc;
+  } catch (error) {
+    console.error('Swagger 문서 로드 실패:', error);
+    throw error;
+  }
+};
+
 // Swagger 설정
 try {
-  const swaggerDocument = yaml.load(
-    fs.readFileSync(path.join(__dirname, 'src/config/swagger.yaml'), 'utf8')
-  );
+  const swaggerDocument = loadSwaggerDocument();
   app.use('/api-docs', verifyToken, isSuperAdmin, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } catch (error) {
   console.error('Swagger 문서 로드 실패:', error);

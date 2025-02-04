@@ -88,9 +88,14 @@ router.get('/auth/kakao/callback',
 
 // 로그아웃
 router.get('/auth/logout', (req, res) => {
-  req.logout();
-  res.clearCookie('jwt');
-  res.redirect('/');
+  req.logout((err) => {
+    if (err) {
+      console.error('로그아웃 실패:', err);
+      return res.status(500).json({ message: '로그아웃 중 오류가 발생했습니다.' });
+    }
+    res.clearCookie('jwt');
+    res.redirect('/');
+  });
 });
 
 // 사용자 권한 업데이트

@@ -12,7 +12,7 @@ const createSuperAdmin = async () => {
         role: 'superadmin',
         provider: 'google',
         providerId: process.env.SUPER_ADMIN_EMAIL, // 이메일을 providerId로 사용
-        is_active: true
+        // is_active: true
       }
     });
 
