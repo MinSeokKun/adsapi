@@ -1,0 +1,53 @@
+# src/config/swagger/main.yaml
+openapi: 3.0.0
+info:
+  title: 광고 관리 시스템 API
+  description: 광고 관리 및 사용자 인증을 위한 API 문서
+  version: 1.0.0
+
+# 다른 파일들을 참조
+tags:
+  - name: auth
+    description: 인증 관련 API
+  - name: ads
+    description: 광고 관리 API
+
+paths:
+  # auth.yaml 파일의 경로들을 포함
+  /auth/google:
+    $ref: './auth.yaml#/paths/~1auth~1google'
+  /auth/google/callback:
+    $ref: './auth.yaml#/paths/~1auth~1google~1callback'
+  /auth/kakao:
+    $ref: './auth.yaml#/paths/~1auth~1kakao'
+  /auth/kakao/callback:
+    $ref: './auth.yaml#/paths/~1auth~1kakao~1callback'
+  /auth/logout:
+    $ref: './auth.yaml#/paths/~1auth~1logout'
+  /api/users/{userId}/role:
+    $ref: './auth.yaml#/paths/~1api~1users~1{userId}~1role'
+    
+  # ads.yaml 파일의 경로들을 포함
+  /api/ads:
+    $ref: './ads.yaml#/paths/~1api~1ads'
+  /api/ads/bulk:
+    $ref: './ads.yaml#/paths/~1api~1ads~1bulk'
+  /api/ads/groups:
+    $ref: './ads.yaml#/paths/~1api~1ads~1groups'
+  /api/ads/{id}:
+    $ref: './ads.yaml#/paths/~1api~1ads~1{id}'
+
+components:
+  schemas:
+    # auth.yaml의 스키마들을 포함
+    User:
+      $ref: './auth.yaml#/components/schemas/User'
+    # ads.yaml의 스키마들을 포함
+    Ad:
+      $ref: './ads.yaml#/components/schemas/Ad'
+    AdCategory:
+      $ref: './ads.yaml#/components/schemas/AdCategory'
+    AdSchedule:
+      $ref: './ads.yaml#/components/schemas/AdSchedule'
+    Error:
+      $ref: './ads.yaml#/components/schemas/Error'

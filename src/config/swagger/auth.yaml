@@ -1,0 +1,157 @@
+paths:
+  /auth/google:
+    get:
+      tags:
+        - auth
+      summary: Google OAuth 로그인
+      description: Google OAuth를 통한 로그인을 시작합니다
+      responses:
+        '302':
+          description: Google 로그인 페이지로 리다이렉트
+
+  /auth/google/callback:
+    get:
+      tags:
+        - auth
+      summary: Google OAuth 콜백
+      description: Google OAuth 인증 후 콜백 처리
+      responses:
+        '302':
+          description: 인증 성공 시 메인 페이지로 리다이렉트
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: jwt=token...
+        '401':
+          description: 인증 실패
+
+  /auth/kakao:
+    get:
+      tags:
+        - auth
+      summary: Kakao OAuth 로그인
+      description: Kakao OAuth를 통한 로그인을 시작합니다
+      responses:
+        '302':
+          description: Kakao 로그인 페이지로 리다이렉트
+
+  /auth/kakao/callback:
+    get:
+      tags:
+        - auth
+      summary: Kakao OAuth 콜백
+      description: Kakao OAuth 인증 후 콜백 처리
+      responses:
+        '302':
+          description: 인증 성공 시 메인 페이지로 리다이렉트
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: jwt=token...
+        '401':
+          description: 인증 실패
+
+  /auth/logout:
+    get:
+      tags:
+        - auth
+      summary: 로그아웃
+      description: 사용자 로그아웃 처리
+      responses:
+        '302':
+          description: 로그아웃 후 메인 페이지로 리다이렉트
+
+  /api/users/{userId}/role:
+    patch:
+      tags:
+        - auth
+      summary: 사용자 권한 수정
+      description: 슈퍼관리자가 다른 사용자의 권한을 수정합니다
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+          description: 수정할 사용자의 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum: [user, admin, superadmin]
+      responses:
+        '200':
+          description: 권한 수정 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: 잘못된 요청
+        '401':
+          description: 인증 실패
+        '403':
+          description: 권한 없음
+        '404':
+          description: 사용자를 찾을 수 없음
+        '500':
+          description: 서버 오류
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 사용자 ID
+        email:
+          type: string
+          format: email
+          description: 사용자 이메일
+        name:
+          type: string
+          description: 사용자 이름
+        provider:
+          type: string
+          enum: [google, kakao, naver]
+          description: OAuth 제공자
+        role:
+          type: string
+          enum: [user, admin, superadmin]
+          description: 사용자 권한
+        profileImage:
+          type: string
+          description: 프로필 이미지 URL
+        lastLogin:
+          type: string
+          format: date-time
+          description: 마지막 로그인 시간
+      required:
+        - id
+        - email
+        - name
+        - provider
+        - role
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
