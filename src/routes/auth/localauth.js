@@ -147,7 +147,7 @@ router.post('/auth/login', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/auth/refresh-token', // refresh 엔드포인트에서만 접근 가능
+      // path: '/auth/refresh-token', // refresh 엔드포인트에서만 접근 가능
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7일
     });
 
