@@ -171,37 +171,4 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
   }
 });
 
-// 토큰 갱신
-router.post('/auth/refresh-token', async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res.status(401).json({ message: '재인증이 필요합니다.' });
-    }
-
-    const tokens = await tokenHandler.refreshTokens(refreshToken);
-    
-    // 새로운 토큰을 쿠키에 설정
-    res.cookie('jwt', tokens.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 3600000 // 1시간
-    });
-    
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh-token',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7일
-    });
-
-    res.json({ message: '토큰이 갱신되었습니다.' });
-  } catch (error) {
-    console.error('토큰 갱신 에러:', error);
-    return res.status(401).json({ message: '재로그인이 필요합니다.' });
-  }
-});
-
 module.exports = router;
