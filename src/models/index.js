@@ -1,8 +1,9 @@
 const sequelize = require('../config/database');
-const AdCategory = require('./adCategory');
-const Ad = require('./ad');
-const AdSchedule = require('./adSchedule');
-const User = require('./user');  // User 모델 추가
+const AdCategory = require('./ad/adCategory');
+const Ad = require('./ad/ad');
+const AdSchedule = require('./ad/adSchedule');
+const User = require('./auth/user');  // User 모델 추가
+const Salon = require('./auth/salon');  // Salon 모델 추가
 
 // 기존 관계 설정
 AdCategory.hasMany(Ad, {
@@ -18,6 +19,16 @@ Ad.hasMany(AdSchedule, {
 AdSchedule.belongsTo(Ad, {
   foreignKey: 'ad_id'
 });
+
+User.hasMany(Salon, {
+  foreignKey: 'owner_id',
+  as: 'ownedSalons'
+});
+Salon.belongsTo(User, {
+  foreignKey: 'owner_id',
+  as: 'owner'
+});
+
 
 // 모델 동기화
 const syncModels = async () => {
@@ -36,5 +47,6 @@ module.exports = {
   Ad,
   AdSchedule,
   User,
+  Salon,
   syncModels
 };

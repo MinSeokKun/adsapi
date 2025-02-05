@@ -1,8 +1,8 @@
 const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { syncModels } = require('./src/models');
-const adsRouter = require('./src/routes/ads');
-const authRouter = require('./src/routes/auth');
-const localauthRouter = require('./src/routes/localauth');
 const swaggerUi = require('swagger-ui-express');
 const yaml = require('js-yaml');
 const fs = require('fs');
@@ -12,22 +12,61 @@ const passport = require('passport');
 const cookieParser = require('cookie-parser');
 require('./src/config/passport');
 const createSuperAdmin = require('./src/seeders/createSuperAdmin');
+const loadRoutes = require('./src/utils/routeLoader');
 const { verifyToken, isSuperAdmin } = require('./src/middleware/auth');
 
 const app = express();
 
+// Security
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 100
+});
+
+// CORS 설정
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL
+    : ['http://localhost:3000', 'http://localhost:5173'],// 허용할 도메인
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // CORS 프리플라이트 요청 캐시 시간 (10분)
+};
+
+app.use(helmet()); // 기본 보안 헤더 설정
+app.use(cors(corsOptions));
+app.use(limiter);
+app.use(express.json({ limit: '10mb' })); // 요청 바디 크기 제한
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// 세션 설정
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
-    httpOnly: true
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24시간
   }
 }));
+
 app.use(passport.initialize());
 app.use(passport.session());
+
+// 에러 핸들러
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal Server Error'
+      : err.message
+  });
+});
 
 // 스웨거 문서 로드
 const loadSwaggerDocument = () => {
@@ -44,18 +83,23 @@ const loadSwaggerDocument = () => {
     const adsDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/ads.yaml'), 'utf8')
     );
+    const salonDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/salon.yaml'), 'utf8')
+    );
 
     // paths와 schemas 병합
     mainDoc.paths = {
       ...mainDoc.paths,
       ...authDoc.paths,
-      ...adsDoc.paths
+      ...adsDoc.paths,
+      ...salonDoc.paths
     };
 
     mainDoc.components.schemas = {
       ...mainDoc.components.schemas,
       ...authDoc.components.schemas,
-      ...adsDoc.components.schemas
+      ...adsDoc.components.schemas,
+      ...salonDoc.components.schemas
     };
 
     return mainDoc;
@@ -76,10 +120,8 @@ try {
 // 미들웨어 설정
 app.use(express.json());
 
-// 라우터 설정
-app.use(adsRouter);
-app.use(authRouter);
-app.use(localauthRouter);
+// 모든 라우터 자동 로드
+loadRoutes(app, path.join(__dirname, 'src', 'routes'));
 
 // 모델 동기화 후 서버 시작
 const startServer = async () => {
@@ -98,6 +140,7 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('서버 시작 실패:', error);
+    process.exit(1);
   }
 };
 

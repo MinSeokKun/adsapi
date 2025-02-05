@@ -53,6 +53,21 @@ router.get('/api/ads', async (req, res) => {
   }
 });
 
+router.get('/api/ads/list', async (req, res) => {
+  try {
+    const ads = await Ad.findAll({
+      where: {
+        is_active: true
+      }
+    });
+
+    res.json({ ads });
+  } catch (error) {
+    console.error('광고 목록 조회 실패:', error);
+    res.status(500).json({ error: '서버 오류' });
+  }
+});
+
 router.post('/api/ads', async (req, res) => {
   const transaction = await sequelize.transaction();
   
