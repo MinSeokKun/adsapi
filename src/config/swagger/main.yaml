@@ -36,6 +36,11 @@ paths:
     $ref: './ads.yaml#/paths/~1api~1ads~1groups'
   /api/ads/{id}:
     $ref: './ads.yaml#/paths/~1api~1ads~1{id}'
+  /api/salons:
+    $ref: './salon.yaml#/paths/~1api~1salons'
+  /api/salons/{salonId}:
+    $ref: './salon.yaml#/paths/~1api~1salons~1{salonId}'
+
 
 components:
   schemas:
@@ -51,3 +56,5 @@ components:
       $ref: './ads.yaml#/components/schemas/AdSchedule'
     Error:
       $ref: './ads.yaml#/components/schemas/Error'
+    Salon:
+      $ref: './salon.yaml#/components/schemas/Salon'

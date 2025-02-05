@@ -87,6 +87,39 @@ paths:
         '500':
           description: 서버 오류
 
+  /api/ads/list:
+    get:
+      tags:
+        - ads
+      summary: 광고 전체 목록 조회
+      description: 모든 광고 목록을 조회합니다
+      responses:
+        '200':
+          description: 성공적으로 광고 목록을 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        type:
+                          type: string
+                          enum: [image, video]
+                        url:
+                          type: string
+                        duration:
+                          type: integer
+                        scheduledTime:
+                          type: string
+        '500':
+          description: 서버 오류
+
   /api/ads/bulk:
     post:
       tags:

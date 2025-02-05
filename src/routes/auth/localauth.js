@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { User } = require('../models');
+const { User } = require('../../models');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const tokenHandler = require('../../middleware/tokenHandler');
 // const nodemailer = require('nodemailer');
 
 // 이메일 전송 설정
@@ -124,18 +125,30 @@ router.post('/auth/login', async (req, res) => {
     // }
 
     // JWT 토큰 생성
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    const accessToken = tokenHandler.generateAccessToken(user);
+    const refreshToken = tokenHandler.generateRefreshToken(user);
 
     // 로그인 시간 업데이트
-    await user.update({ lastLogin: new Date() });
-
-    res.cookie('jwt', token, {
+    await user.update({
+      refreshToken,
+      lastLogin: new Date()
+    });
+    
+    // Access Token 쿠키 설정
+    res.cookie('jwt', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production'
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3600000 // 1시간
+    });
+
+    // Refresh Token 쿠키 설정
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/auth/refresh-token', // refresh 엔드포인트에서만 접근 가능
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7일
     });
 
     res.json({ 
@@ -143,7 +156,8 @@ router.post('/auth/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
   } catch (error) {

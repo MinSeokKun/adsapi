@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../../config/database');
 const bcrypt = require('bcrypt');
 
 const User = sequelize.define('User', {
@@ -30,7 +30,7 @@ const User = sequelize.define('User', {
     allowNull: true  // local 회원가입의 경우 없음
   },
   role: {
-    type: DataTypes.ENUM('user', 'admin', 'superadmin'),
+    type: DataTypes.ENUM('user', 'admin', 'superadmin'), // 미용실 원장, 관리자, 최고 관리자
     defaultValue: 'user',
     allowNull: false
   },
