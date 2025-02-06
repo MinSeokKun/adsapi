@@ -116,12 +116,28 @@ const uploadFields = upload.fields([
   { name: 'minFiles', maxCount: 10 }   // min size 이미지/비디오
 ]);
 
+const parseSchedules = (schedulesInput) => {
+  if (!schedulesInput) return [];
+  
+  try {
+    // JSON 파싱 시도
+    return JSON.parse(schedulesInput);
+  } catch (e) {
+    // JSON 파싱 실패 시 콤마로 구분된 문자열로 처리 시도
+    if (typeof schedulesInput === 'string') {
+      const times = schedulesInput.split(',').map(t => t.trim());
+      return times;
+    }
+    throw new Error('schedules must be a valid JSON array string or comma-separated time values');
+  }
+};
+
 router.post('/api/ads', uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
     const { title, schedules } = req.body;
-    const parsedSchedules = schedules ? JSON.parse(schedules) : []; // schedules가 있는 경우에만 파싱
+    const parsedSchedules = parseSchedules(schedules);
 
     // 1. 광고 기본 정보 저장
     const ad = await Ad.create({
