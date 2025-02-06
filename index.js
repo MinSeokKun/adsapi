@@ -134,7 +134,7 @@ const startServer = async () => {
     }
     
     const port = process.env.PORT || 3000;
-    app.listen(port, () => {
+    app.listen(port, '0.0.0.0', () => {
       console.log(`서버가 포트 ${port}에서 실행 중입니다.`);
       console.log(`Swagger 문서는 http://localhost:${port}/api-docs 에서 확인할 수 있습니다.`);
     });
