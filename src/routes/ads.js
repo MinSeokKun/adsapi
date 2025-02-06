@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const sequelize = require('../config/database');
 const { Ad, AdMedia, AdSchedule } = require('../models');
+const multer = require('multer');
+const ncloudStorage = require('../config/nCloudStorage');
 
 router.get('/api/ads', async (req, res) => {
   try {
@@ -92,15 +94,34 @@ router.get('/api/ads/list', async (req, res) => {
   }
 });
 
-router.post('/api/ads', async (req, res) => {
+// 메모리에 임시 저장하는 multer 설정
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB 제한
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('지원하지 않는 파일 형식입니다.'), false);
+    }
+  }
+});
+
+// 여러 파일을 처리하기 위한 필드 설정
+const uploadFields = upload.fields([
+  { name: 'maxFiles', maxCount: 10 },  // max size 이미지/비디오
+  { name: 'minFiles', maxCount: 10 }   // min size 이미지/비디오
+]);
+
+router.post('/api/ads', uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
-    const { 
-      title,
-      media,     // [{url, type, duration, size, is_primary}, ...]
-      schedules  // 선택된 시간들의 배열 ["10:00", "11:00", "13:00"]
-    } = req.body;
+    const { title, schedules } = req.body;
+    const parsedSchedules = schedules ? JSON.parse(schedules) : []; // schedules가 있는 경우에만 파싱
 
     // 1. 광고 기본 정보 저장
     const ad = await Ad.create({
@@ -108,22 +129,47 @@ router.post('/api/ads', async (req, res) => {
       is_active: true
     }, { transaction });
 
-    // 2. 미디어 정보 저장
-    const mediaPromises = media.map(item => 
-      AdMedia.create({
-        ad_id: ad.id,
-        url: item.url,
-        type: item.type,
-        duration: item.duration,
-        size: item.size,
-        is_primary: item.is_primary
-      }, { transaction })
-    );
+    // 2. 파일 업로드 및 미디어 정보 저장
+    const mediaPromises = [];
+
+    // max size 파일 처리
+    if (req.files.maxFiles) {
+      for (const file of req.files.maxFiles) {
+        const fileUrl = await ncloudStorage.uploadFile(file);
+        mediaPromises.push(
+          AdMedia.create({
+            ad_id: ad.id,
+            url: fileUrl,
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            duration: 30, // 기본값 또는 req.body에서 받을 수 있음
+            size: 'max',
+            is_primary: false
+          }, { transaction })
+        );
+      }
+    }
+
+    // min size 파일 처리
+    if (req.files.minFiles) {
+      for (const file of req.files.minFiles) {
+        const fileUrl = await ncloudStorage.uploadFile(file);
+        mediaPromises.push(
+          AdMedia.create({
+            ad_id: ad.id,
+            url: fileUrl,
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            duration: 30, // 기본값 또는 req.body에서 받을 수 있음
+            size: 'min',
+            is_primary: false
+          }, { transaction })
+        );
+      }
+    }
 
     await Promise.all(mediaPromises);
 
     // 3. 선택된 시간들에 대한 스케줄 생성
-    const schedulePromises = schedules.map(time => 
+    const schedulePromises = parsedSchedules.map(time => 
       AdSchedule.create({
         ad_id: ad.id,
         time: time + ':00:00', // HH:mm:ss 형식으로 저장
@@ -157,7 +203,7 @@ router.post('/api/ads', async (req, res) => {
           size: m.size,
           is_primary: m.is_primary
         })),
-        schedules: schedules
+        schedules: parsedSchedules
       }
     });
 
