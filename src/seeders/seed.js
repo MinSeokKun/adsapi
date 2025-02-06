@@ -1,64 +1,133 @@
-const { AdCategory, Ad, AdSchedule } = require('../models');
+const { Ad, AdMedia, AdSchedule } = require('../models');
 
 async function seedDatabase() {
   try {
-    // 카테고리 생성
-    const beautyCategory = await AdCategory.create({
-      name: 'beauty',
-      description: '뷰티 관련 광고'
-    });
-
-    const fashionCategory = await AdCategory.create({
-      name: 'fashion',
-      description: '패션 관련 광고'
-    });
-
-    const foodCategory = await AdCategory.create({
-      name: 'food',
-      description: '음식 관련 광고'
-    });
-
-    // 뷰티 카테고리 광고 생성
+    // 뷰티 광고 생성
     const beautyAd1 = await Ad.create({
       title: '화장품 광고 1',
+      is_active: true
+    });
+
+    await AdMedia.create({
+      ad_id: beautyAd1.id,
+      url: 'https://example.com/beauty1_max.png',
       type: 'image',
-      url: 'https://example.com/beauty1.png',
       duration: 15,
-      ad_category_id: beautyCategory.id
+      order: 0,
+      is_primary: true,
+      size: 'max'
+    });
+
+    await AdMedia.create({
+      ad_id: beautyAd1.id,
+      url: 'https://example.com/beauty1_min.png',
+      type: 'image',
+      duration: 15,
+      order: 1,
+      is_primary: false,
+      size: 'min'
     });
 
     const beautyAd2 = await Ad.create({
       title: '화장품 광고 2',
-      type: 'video',
-      url: 'https://example.com/beauty2.mp4',
-      duration: 30,
-      ad_category_id: beautyCategory.id
+      is_active: true
     });
 
-    // 패션 카테고리 광고 생성
+    await AdMedia.create({
+      ad_id: beautyAd2.id,
+      url: 'https://example.com/beauty2_max.mp4',
+      type: 'video',
+      duration: 30,
+      order: 0,
+      is_primary: true,
+      size: 'max'
+    });
+
+    await AdMedia.create({
+      ad_id: beautyAd2.id,
+      url: 'https://example.com/beauty2_min.mp4',
+      type: 'video',
+      duration: 30,
+      order: 1,
+      is_primary: false,
+      size: 'min'
+    });
+
+    // 패션 광고 생성
     const fashionAd1 = await Ad.create({
       title: '의류 광고 1',
+      is_active: true
+    });
+
+    await AdMedia.create({
+      ad_id: fashionAd1.id,
+      url: 'https://example.com/fashion1_max.png',
       type: 'image',
-      url: 'https://example.com/fashion1.png',
       duration: 20,
-      ad_category_id: fashionCategory.id
+      order: 0,
+      is_primary: true,
+      size: 'max'
+    });
+
+    await AdMedia.create({
+      ad_id: fashionAd1.id,
+      url: 'https://example.com/fashion1_min.png',
+      type: 'image',
+      duration: 20,
+      order: 1,
+      is_primary: false,
+      size: 'min'
     });
 
     const fashionAd2 = await Ad.create({
       title: '의류 광고 2',
-      type: 'video',
-      url: 'https://example.com/fashion2.mp4',
-      duration: 25,
-      ad_category_id: fashionCategory.id
+      is_active: true
     });
 
-    // 음식 카테고리 광고 생성
+    await AdMedia.create({
+      ad_id: fashionAd2.id,
+      url: 'https://example.com/fashion2_max.mp4',
+      type: 'video',
+      duration: 25,
+      order: 0,
+      is_primary: true,
+      size: 'max'
+    });
+
+    await AdMedia.create({
+      ad_id: fashionAd2.id,
+      url: 'https://example.com/fashion2_min.mp4',
+      type: 'video',
+      duration: 25,
+      order: 1,
+      is_primary: false,
+      size: 'min'
+    });
+
+    // 음식 광고 생성
     const foodAd1 = await Ad.create({
       title: '음식 광고',
+      is_active: true
+    });
+
+    await AdMedia.create({
+      ad_id: foodAd1.id,
+      url: 'https://example.com/food1_max.png',
       type: 'image',
-      url: 'https://example.com/food1.png',
       duration: 15,
-      ad_category_id: foodCategory.id
+      order: 0,
+      is_primary: true,
+      size: 'max'
+    });
+
+    await AdMedia.create({
+      ad_id: foodAd1.id,
+      url: 'https://example.com/food1_min.png',
+      type: 'image',
+      duration: 15,
+      order: 1,
+      is_primary: false,
+      size: 'min'
     });
 
     // 광고 스케줄 생성
@@ -88,7 +157,7 @@ async function seedDatabase() {
       is_active: true
     });
 
-    // 음식 광고 스케줄 (여러 시간대)
+    // 음식 광고 스케줄
     await AdSchedule.create({
       ad_id: foodAd1.id,
       time: '12:00:00',

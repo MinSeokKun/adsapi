@@ -139,7 +139,7 @@ router.post('/auth/login', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 3600000 // 1시간
+      maxAge: 24 * 3600000  // 24시간
     });
 
     // Refresh Token 쿠키 설정

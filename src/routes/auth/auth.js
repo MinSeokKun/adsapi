@@ -36,7 +36,7 @@ router.get('/auth/google/callback',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 3600000 // 1시간
+        maxAge: 24 * 3600000  // 24시간
       });
       
       // Refresh Token 쿠키 설정
@@ -85,7 +85,7 @@ router.get('/auth/kakao/callback',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 3600000 // 1시간
+        maxAge: 24 * 60 * 60 * 1000 // 24시간
       });
       
       // Refresh Token 쿠키 설정
