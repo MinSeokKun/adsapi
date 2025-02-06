@@ -59,8 +59,8 @@ paths:
                   description: 작은 사이즈의 이미지/비디오 파일들
                 schedules:
                   type: string
-                  description: 광고 노출 시간 배열 (JSON 문자열 ["10:00", "11:00", "13:00"])
-                  example: '["10:00", "11:00", "13:00"]'
+                  description: 광고 노출 시간 배열 (JSON 문자열 ["10", "11", "13"])
+                  example: '["10", "11", "13"]'
       responses:
         '201':
           description: 광고가 성공적으로 등록됨
