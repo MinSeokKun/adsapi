@@ -2,6 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const KakaoStrategy = require('passport-kakao').Strategy;
 const { User } = require('../models');
+const { Op } = require('sequelize');
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -27,12 +28,23 @@ passport.use(new GoogleStrategy({
     try {
       const existingUser = await User.findOne({
         where: {
-          provider: 'google',
-          providerId: profile.id
+          [Op.or]: [
+            {
+              provider: 'google',
+              providerId: profile.id
+            },
+            {
+              email: profile.emails[0].value
+            }
+          ]
         }
       });
-
+      
       if (existingUser) {
+        // 이미 존재하는 계정이지만 다른 provider로 가입한 경우
+        if (existingUser.provider !== 'google') {
+          console.log('이미 다른 방식으로 가입된 이메일입니다:', existingUser.provider);
+        }
         return done(null, existingUser);
       }
 
