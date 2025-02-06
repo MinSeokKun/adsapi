@@ -1,0 +1,121 @@
+# src/config/swagger/upload.yaml
+paths:
+  /api/upload:
+    post:
+      tags:
+        - upload
+      summary: 단일 이미지 업로드
+      description: 이미지 파일을 Naver Cloud Object Storage에 업로드합니다
+      operationId: uploadSingleImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: 업로드할 이미지 파일
+      responses:
+        '201':
+          description: 파일 업로드 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 파일 업로드 성공
+                  file:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        example: https://kr.object.ncloudstorage.com/your-bucket/1234567890-image.jpg
+                      originalName:
+                        type: string
+                        example: image.jpg
+                      size:
+                        type: number
+                        example: 1048576
+                      mimetype:
+                        type: string
+                        example: image/jpeg
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 파일이 없습니다.
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 파일 업로드 중 오류가 발생했습니다.
+                  details:
+                    type: string
+
+  /api/upload/multiple:
+    post:
+      tags:
+        - upload
+      summary: 다중 이미지 업로드
+      description: 여러 이미지 파일을 Naver Cloud Object Storage에 업로드합니다
+      operationId: uploadMultipleImages
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: 업로드할 이미지 파일들
+      responses:
+        '201':
+          description: 파일 업로드 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 파일 업로드 성공
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          example: https://kr.object.ncloudstorage.com/your-bucket/1234567890-image.jpg
+                        originalName:
+                          type: string
+                          example: image.jpg
+                        size:
+                          type: number
+                          example: 1048576
+                        mimetype:
+                          type: string
+                          example: image/jpeg
+        '400':
+          description: 잘못된 요청
+        '500':
+          description: 서버 오류
