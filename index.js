@@ -26,13 +26,13 @@ const limiter = rateLimit({
 // CORS 설정
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL
-    : ['http://localhost:3000', 'http://localhost:5173'],// 허용할 도메인
+    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000'] // 공인 IP 추가
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // CORS 프리플라이트 요청 캐시 시간 (10분)
+  maxAge: 600
 };
 
 app.use(helmet()); // 기본 보안 헤더 설정
