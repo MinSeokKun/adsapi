@@ -4,13 +4,8 @@ paths:
       tags:
         - ads
       summary: 광고 목록 조회
-      description: 카테고리와 시간에 따른 광고 목록을 조회합니다
+      description: 시간에 따른 광고 목록을 조회합니다
       parameters:
-        - in: query
-          name: category
-          schema:
-            type: string
-          description: 광고 카테고리 이름
         - in: query
           name: time
           schema:
@@ -27,26 +22,14 @@ paths:
                   ads:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        type:
-                          type: string
-                          enum: [image, video]
-                        url:
-                          type: string
-                        duration:
-                          type: integer
-                        scheduledTime:
-                          type: string
+                      $ref: '#/components/schemas/AdResponse'
         '500':
           description: 서버 오류
           
     post:
       tags:
         - ads
-      summary: 단일 광고 등록
+      summary: 광고 등록
       description: 새로운 광고를 등록합니다
       requestBody:
         required: true
@@ -56,25 +39,16 @@ paths:
               type: object
               required:
                 - title
-                - type
-                - url
-                - duration
-                - category
+                - media
                 - schedules
               properties:
                 title:
                   type: string
                   maxLength: 100
-                type:
-                  type: string
-                  enum: [image, video]
-                url:
-                  type: string
-                  maxLength: 255
-                duration:
-                  type: integer
-                category:
-                  type: string
+                media:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AdMediaInput'
                 schedules:
                   type: array
                   items:
@@ -84,6 +58,15 @@ paths:
       responses:
         '201':
           description: 광고가 성공적으로 등록됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  ad:
+                    $ref: '#/components/schemas/AdResponse'
         '500':
           description: 서버 오류
 
@@ -104,122 +87,7 @@ paths:
                   ads:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        type:
-                          type: string
-                          enum: [image, video]
-                        url:
-                          type: string
-                        duration:
-                          type: integer
-                        scheduledTime:
-                          type: string
-        '500':
-          description: 서버 오류
-
-  /api/ads/bulk:
-    post:
-      tags:
-        - ads
-      summary: 복수 광고 일괄 등록
-      description: 여러 광고 이미지를 그룹으로 일괄 등록합니다
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - selectedTime
-                - adGroups
-              properties:
-                selectedTime:
-                  type: string
-                  format: time
-                  example: "13"
-                adGroups:
-                  type: array
-                  items:
-                    type: array
-                    minItems: 2
-                    maxItems: 2
-                    items:
-                      type: string
-                  example: [
-                    ["assets/img/yoajung-max.png", "assets/img/yoajung-min.png"],
-                    ["assets/img/amos-max.png", "assets/img/amos-min.png"]
-                  ]
-      responses:
-        '201':
-          description: 광고들이 성공적으로 등록됨
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  ads:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        title:
-                          type: string
-                        url:
-                          type: string
-                        scheduledTime:
-                          type: string
-        '500':
-          description: 서버 오류
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                  details:
-                    type: string
-
-  /api/ads/groups:
-    get:
-      tags:
-        - ads
-      summary: 광고 그룹 조회
-      description: 특정 시간대의 광고 그룹을 조회합니다
-      parameters:
-        - in: query
-          name: time
-          required: true
-          schema:
-            type: string
-            format: time
-          description: 조회할 시간 (HH 형식)
-      responses:
-        '200':
-          description: 성공적으로 광고 그룹을 조회함
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  adGroups:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        maxImage:
-                          type: string
-                        minImage:
-                          type: string
-                        scheduledTime:
-                          type: string
+                      $ref: '#/components/schemas/AdResponse'
         '500':
           description: 서버 오류
 
@@ -242,20 +110,18 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - title
+                - media
+                - schedules
               properties:
                 title:
                   type: string
                   maxLength: 100
-                type:
-                  type: string
-                  enum: [image, video]
-                url:
-                  type: string
-                  maxLength: 255
-                duration:
-                  type: integer
-                category:
-                  type: string
+                media:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AdMediaInput'
                 schedules:
                   type: array
                   items:
@@ -266,10 +132,128 @@ paths:
       responses:
         '200':
           description: 광고가 성공적으로 수정됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  ad:
+                    $ref: '#/components/schemas/AdResponse'
         '404':
           description: 광고를 찾을 수 없음
         '500':
           description: 서버 오류
+  
+  /api/ads/schedule:
+    post:
+      tags:
+        - ads
+      summary: 광고 스케줄 일괄 등록/수정
+      description: 여러 광고의 스케줄을 일괄적으로 등록하거나 수정합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  - ad_id
+                  - time
+                properties:
+                  ad_id:
+                    type: integer
+                    description: 광고 ID
+                  time:
+                    type: array
+                    items:
+                      type: integer
+                      minimum: 0
+                      maximum: 23
+                    description: 스케줄 시간들 (0-23)
+              example: [
+                {
+                  "ad_id": 1,
+                  "time": [10]
+                },
+                {
+                  "ad_id": 2,
+                  "time": [10, 12, 16]
+                }
+              ]
+      responses:
+        '200':
+          description: 스케줄 등록/수정 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "광고 스케줄이 성공적으로 저장되었습니다"
+                  ads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: 광고 ID
+                        title:
+                          type: string
+                          description: 광고 제목
+                        media:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              url:
+                                type: string
+                                description: 미디어 URL
+                              type:
+                                type: string
+                                enum: [image, video]
+                                description: 미디어 타입
+                              duration:
+                                type: integer
+                                description: 재생 시간(초)
+                              size:
+                                type: string
+                                enum: [min, max]
+                                description: 광고 크기
+                              is_primary:
+                                type: boolean
+                                description: 주 광고 여부
+                        schedules:
+                          type: array
+                          items:
+                            type: integer
+                          description: 등록된 시간들 (0-23)
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "올바른 형식의 데이터가 아닙니다"
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  details:
+                    type: string
 
 components:
   schemas:
@@ -279,36 +263,75 @@ components:
         id:
           type: integer
           description: 광고 ID
-        type:
+        title:
           type: string
-          description: 광고 타입
-        url:
+          description: 광고 제목
+        is_active:
+          type: boolean
+          description: 활성화 여부
+        created_at:
           type: string
-          description: 광고 URL 
-        duration:
-          type: integer
-          description: 광고 재생 시간(초)
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
       required:
         - id
-        - type
-        - url
-        - duration
-  
-    AdCategory:
+        - title
+        - is_active
+    
+    AdMedia:
       type: object
       properties:
-        id:
+        url:
+          type: string
+          description: 미디어 URL
+        type:
+          type: string
+          enum: [image, video]
+          description: 미디어 타입
+        duration:
           type: integer
-          description: 카테고리 ID
-        name:
+          description: 재생 시간(초)
+        size:
           type: string
-          description: 카테고리 이름
-        description:
-          type: string
-          description: 카테고리 설명
+          enum: [min, max]
+          description: 광고 크기
+        is_primary:
+          type: boolean
+          description: 주 광고 여부
       required:
-        - id
-        - name
+        - url
+        - type
+        - duration
+        - size
+    
+    AdMediaInput:
+      type: object
+      properties:
+        url:
+          type: string
+          description: 미디어 URL
+        type:
+          type: string
+          enum: [image, video]
+          description: 미디어 타입
+        duration:
+          type: integer
+          description: 재생 시간(초)
+        size:
+          type: string
+          enum: [min, max]
+          description: 광고 크기
+        is_primary:
+          type: boolean
+          description: 주 광고 여부
+      required:
+        - url
+        - type
+        - duration
+        - size
+        - is_primary
 
     AdSchedule:
       type: object
@@ -330,6 +353,28 @@ components:
         - id
         - ad_id
         - time
+        - is_active
+
+    AdResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 광고 ID
+        title:
+          type: string
+          description: 광고 제목
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdMedia'
+        scheduledTime:
+          type: string
+          description: 스케줄된 시간 (조회 시에만 포함)
+      required:
+        - id
+        - title
+        - media
 
     Error:
       type: object

@@ -53,7 +53,7 @@ exports.verifyToken = async (req, res, next) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 3600000 // 1시간
+            maxAge: 24 * 60 * 60 * 1000 // 24시간
           });
 
           res.cookie('refreshToken', newRefreshToken, {
