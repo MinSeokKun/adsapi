@@ -5,10 +5,6 @@ const AdSchedule = sequelize.define('AdSchedule', {
   time: {
     type: DataTypes.TIME,
     allowNull: false
-  },
-  is_active: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
   }
 }, {
   tableName: 'ad_schedules',
