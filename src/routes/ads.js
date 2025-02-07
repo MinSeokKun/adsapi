@@ -4,8 +4,9 @@ const sequelize = require('../config/database');
 const { Ad, AdMedia, AdSchedule } = require('../models');
 const multer = require('multer');
 const ncloudStorage = require('../config/nCloudStorage');
+const { verifyToken, isAdmin, isSuperAdmin } = require('../middleware/auth');
 
-router.get('/api/ads', async (req, res) => {
+router.get('/api/ads', verifyToken, async (req, res) => {
   try {
     const { time } = req.query;
     console.log('요청된 시간:', time);
@@ -18,9 +19,6 @@ router.get('/api/ads', async (req, res) => {
         attributes: ['url', 'type', 'duration', 'size', 'is_primary']
       }, {
         model: AdSchedule,
-        where: {
-          is_active: true
-        },
         required: false, // LEFT JOIN
         attributes: ['time']
       }],
@@ -61,7 +59,7 @@ router.get('/api/ads', async (req, res) => {
   }
 });
 
-router.get('/api/ads/list', async (req, res) => {
+router.get('/api/ads/list', verifyToken, async (req, res) => {
   try {
     const ads = await Ad.findAll({
       include: [{
@@ -150,7 +148,7 @@ const parseSchedules = (schedulesInput) => {
   }
 };
 
-router.post('/api/ads', uploadFields, async (req, res) => {
+router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
@@ -253,16 +251,15 @@ router.post('/api/ads', uploadFields, async (req, res) => {
   }
 });
 
-router.put('/api/ads/:id', async (req, res) => {
+router.put('/api/ads/:id', verifyToken, isAdmin, uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {
     const { id } = req.params;
     const { 
       title,
-      media,    // [{url, type, duration, size, is_primary}, ...]
-      schedules,
-      is_active
+      is_active,
+      schedules
     } = req.body;
 
     // 1. 광고 존재 확인
@@ -277,23 +274,48 @@ router.put('/api/ads/:id', async (req, res) => {
       is_active
     }, { transaction });
 
-    // 3. 기존 미디어 비활성화 (soft delete) 또는 삭제
+    // 3. 기존 미디어 삭제
     await AdMedia.destroy({
       where: { ad_id: id },
       transaction
     });
 
-    // 4. 새로운 미디어 정보 저장
-    const mediaPromises = media.map(item => 
-      AdMedia.create({
-        ad_id: id,
-        url: item.url,
-        type: item.type,
-        duration: item.duration,
-        size: item.size,
-        is_primary: item.is_primary
-      }, { transaction })
-    );
+    // 4. 새로운 미디어 파일 업로드 및 정보 저장
+    const mediaPromises = [];
+
+    // max size 파일 처리
+    if (req.files.maxFiles) {
+      for (const file of req.files.maxFiles) {
+        const fileUrl = await ncloudStorage.uploadFile(file);
+        mediaPromises.push(
+          AdMedia.create({
+            ad_id: id,
+            url: fileUrl,
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            duration: 30,
+            size: 'max',
+            is_primary: false
+          }, { transaction })
+        );
+      }
+    }
+
+    // min size 파일 처리
+    if (req.files.minFiles) {
+      for (const file of req.files.minFiles) {
+        const fileUrl = await ncloudStorage.uploadFile(file);
+        mediaPromises.push(
+          AdMedia.create({
+            ad_id: id,
+            url: fileUrl,
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            duration: 30,
+            size: 'min',
+            is_primary: false
+          }, { transaction })
+        );
+      }
+    }
 
     await Promise.all(mediaPromises);
 
@@ -307,7 +329,8 @@ router.put('/api/ads/:id', async (req, res) => {
     );
 
     // 6. 새로운 스케줄 생성
-    const schedulePromises = schedules.map(time => 
+    const parsedSchedules = parseSchedules(schedules);
+    const schedulePromises = parsedSchedules.map(time => 
       AdSchedule.create({
         ad_id: id,
         time: time + ':00:00',
@@ -341,7 +364,7 @@ router.put('/api/ads/:id', async (req, res) => {
           size: m.size,
           is_primary: m.is_primary
         })),
-        schedules: schedules
+        schedules: parsedSchedules
       }
     });
 
@@ -356,7 +379,7 @@ router.put('/api/ads/:id', async (req, res) => {
   }
 });
 
-router.delete('/api/ads/:id', async (req, res) => {
+router.delete('/api/ads/:id', verifyToken, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const ad = await Ad.findByPk(id);
@@ -374,7 +397,7 @@ router.delete('/api/ads/:id', async (req, res) => {
   }
 });
 
-router.post('/api/ads/schedule', async (req, res) => {
+router.post('/api/ads/schedule', verifyToken, isAdmin, async (req, res) => {
   const transaction = await sequelize.transaction();
   
   try {

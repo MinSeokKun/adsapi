@@ -157,7 +157,7 @@ paths:
       tags:
         - ads
       summary: 광고 수정
-      description: 기존 광고의 정보를 수정합니다
+      description: 기존 광고의 정보와 미디어 파일을 수정합니다
       parameters:
         - in: path
           name: id
@@ -168,28 +168,35 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               required:
                 - title
-                - media
-                - schedules
               properties:
                 title:
                   type: string
+                  description: 광고 제목
                   maxLength: 100
-                media:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/AdMediaInput'
-                schedules:
+                maxFiles:
                   type: array
                   items:
                     type: string
-                    format: time
+                    format: binary
+                  description: 큰 사이즈의 이미지/비디오 파일들
+                minFiles:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: 작은 사이즈의 이미지/비디오 파일들
+                schedules:
+                  type: string
+                  description: 광고 노출 시간 배열 (JSON 문자열 ["10", "11", "13"])
+                  example: '["10", "11", "13"]'
                 is_active:
                   type: boolean
+                  description: 광고 활성화 여부
       responses:
         '200':
           description: 광고가 성공적으로 수정됨
@@ -200,12 +207,101 @@ paths:
                 properties:
                   message:
                     type: string
+                    example: 광고가 성공적으로 수정되었습니다
                   ad:
-                    $ref: '#/components/schemas/AdResponse'
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      title:
+                        type: string
+                        example: 샘플 광고
+                      media:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            url:
+                              type: string
+                              example: https://kr.object.ncloudstorage.com/bucket/1234567890-image.jpg
+                            type:
+                              type: string
+                              enum: [image, video]
+                              example: image
+                            duration:
+                              type: integer
+                              example: 30
+                            size:
+                              type: string
+                              enum: [min, max]
+                              example: max
+                            is_primary:
+                              type: boolean
+                              example: false
+                      schedules:
+                        type: array
+                        items:
+                          type: string
+                        example: ["10:00", "11:00", "13:00"]
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 지원하지 않는 파일 형식입니다
+        '404':
+          description: 광고를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 광고를 찾을 수 없습니다
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - ads
+      summary: 광고 삭제
+      description: 기존 광고를 삭제합니다
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: 삭제할 광고 ID
+      responses:
+        '200':
+          description: 광고가 성공적으로 삭제됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "광고가 성공적으로 삭제되었습니다"
         '404':
           description: 광고를 찾을 수 없음
         '500':
           description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   
   /api/ads/schedule:
     post:
