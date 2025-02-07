@@ -120,15 +120,33 @@ const parseSchedules = (schedulesInput) => {
   if (!schedulesInput) return [];
   
   try {
-    // JSON 파싱 시도
-    return JSON.parse(schedulesInput);
-  } catch (e) {
-    // JSON 파싱 실패 시 콤마로 구분된 문자열로 처리 시도
+    // 문자열인 경우 JSON 파싱 시도
     if (typeof schedulesInput === 'string') {
-      const times = schedulesInput.split(',').map(t => t.trim());
-      return times;
+      // 단일 숫자인지 확인
+      if (!isNaN(schedulesInput)) {
+        return [schedulesInput];
+      }
+      
+      // JSON 파싱 시도
+      try {
+        const parsed = JSON.parse(schedulesInput);
+        // 파싱된 결과가 배열이 아니면 단일 요소 배열로 변환
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        // JSON 파싱 실패 시 콤마로 구분된 문자열로 처리
+        return schedulesInput.split(',').map(t => t.trim());
+      }
     }
-    throw new Error('schedules must be a valid JSON array string or comma-separated time values');
+    
+    // 이미 배열인 경우
+    if (Array.isArray(schedulesInput)) {
+      return schedulesInput;
+    }
+    
+    // 그 외의 경우 (숫자 등) 단일 요소 배열로 변환
+    return [schedulesInput];
+  } catch (e) {
+    throw new Error('schedules must be a valid JSON array string, comma-separated time values, or a single time value');
   }
 };
 
@@ -183,8 +201,9 @@ router.post('/api/ads', uploadFields, async (req, res) => {
     }
 
     await Promise.all(mediaPromises);
-
+    
     // 3. 선택된 시간들에 대한 스케줄 생성
+    console.log('parsedSchedules:', parsedSchedules);
     const schedulePromises = parsedSchedules.map(time => 
       AdSchedule.create({
         ad_id: ad.id,
@@ -192,7 +211,7 @@ router.post('/api/ads', uploadFields, async (req, res) => {
         is_active: true
       }, { transaction })
     );
-
+    
     await Promise.all(schedulePromises);
     await transaction.commit();
 
