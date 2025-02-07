@@ -396,8 +396,7 @@ router.post('/api/ads/schedule', async (req, res) => {
       
       return [
         // 기존 스케줄 비활성화
-        AdSchedule.update(
-          { is_active: false },
+        AdSchedule.destroy(
           { 
             where: { ad_id },
             transaction 
@@ -407,8 +406,7 @@ router.post('/api/ads/schedule', async (req, res) => {
         ...time.map(hour => 
           AdSchedule.create({
             ad_id,
-            time: `${hour}:00:00`,
-            is_active: true
+            time: `${hour}:00:00`
           }, { transaction })
         )
       ];
@@ -431,9 +429,6 @@ router.post('/api/ads/schedule', async (req, res) => {
         },
         {
           model: AdSchedule,
-          where: {
-            is_active: true
-          },
           required: false, // LEFT JOIN 사용
           attributes: ['time']
         }
