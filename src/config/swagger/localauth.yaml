@@ -1,0 +1,226 @@
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - auth
+      summary: 일반 회원가입
+      description: 이메일과 비밀번호로 새로운 계정을 생성합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: 사용자 이메일
+                name:
+                  type: string
+                  description: 사용자 이름
+                password:
+                  type: string
+                  format: password
+                  description: 비밀번호
+      responses:
+        '201':
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 회원가입이 완료되었습니다.
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      email:
+                        type: string
+                      name:
+                        type: string
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 이미 사용 중인 이메일입니다.
+        '500':
+          description: 서버 오류
+
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: 일반 로그인
+      description: 이메일과 비밀번호로 로그인합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: 사용자 이메일
+                password:
+                  type: string
+                  format: password
+                  description: 비밀번호
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 로그인 성공
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        type: string
+                        enum: [user, admin, superadmin]
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: jwt=token...; HttpOnly; Secure; SameSite=Strict
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 소셜 로그인 계정입니다.
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 이메일 또는 비밀번호가 올바르지 않습니다.
+        '500':
+          description: 서버 오류
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - auth
+      summary: 비밀번호 재설정 요청
+      description: 비밀번호 재설정 이메일을 발송합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: 사용자 이메일
+      responses:
+        '200':
+          description: 이메일 발송 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 비밀번호 재설정 이메일이 발송되었습니다.
+        '404':
+          description: 계정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 해당 이메일로 가입된 계정을 찾을 수 없습니다.
+        '500':
+          description: 서버 오류
+
+  /auth/reset-password:
+    post:
+      tags:
+        - auth
+      summary: 비밀번호 재설정
+      description: 토큰을 확인하고 새로운 비밀번호로 변경합니다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: 비밀번호 재설정 토큰
+                password:
+                  type: string
+                  format: password
+                  description: 새로운 비밀번호
+      responses:
+        '200':
+          description: 비밀번호 변경 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 비밀번호가 성공적으로 재설정되었습니다.
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 유효하지 않거나 만료된 토큰입니다.
+        '500':
+          description: 서버 오류
