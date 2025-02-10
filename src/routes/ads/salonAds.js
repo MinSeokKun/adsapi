@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sequelize = require('../../config/database');
 const multer = require('multer');
-const { storage, STORAGE_PATHS } = require('../../config/ncloudStorage');
+const { storage, STORAGE_PATHS } = require('../../config/nCloudStorage');
 const { Ad, AdMedia, Salon } = require('../../models');
 const { verifyToken } = require('../../middleware/auth');
 
