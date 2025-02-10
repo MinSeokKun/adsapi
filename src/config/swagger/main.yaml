@@ -11,8 +11,8 @@ tags:
     description: 광고 관리 API
   - name: salons
     description: 미용실 관리 API
-  - name: upload
-    description: 파일 업로드 API
+  - name: salonAds
+    description: 미용실 광고 관리 API
 
 paths:
   # auth.yaml 파일의 경로들을 포함
@@ -44,12 +44,10 @@ paths:
     $ref: './salon.yaml#/paths/~1api~1salons'
   /api/salons/{salonId}:
     $ref: './salon.yaml#/paths/~1api~1salons~1{salonId}'
-  
-  # upload.yaml 파일의 경로들을 포함
-  /api/upload:
-    $ref: './upload.yaml#/paths/~1api~1upload'
-  /api/upload/multiple:
-    $ref: './upload.yaml#/paths/~1api~1upload~1multiple'
+
+  # salonAds.yaml 파일의 경로들을 포함
+  /api/ads/salon:
+    $ref: './salonAds.yaml#/paths/~1api~1ads~1salon'
 
 components:
   schemas:

@@ -1,0 +1,173 @@
+paths:
+  /api/ads/salon:
+    get:
+      tags:
+        - salonAds
+      summary: 미용실 광고 목록 조회
+      description: 현재 로그인한 사용자의 미용실에 등록된 광고 목록을 조회합니다
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 성공적으로 미용실 광고 목록을 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  salons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: 미용실 ID
+                        name:
+                          type: string
+                          description: 미용실 이름
+                        address:
+                          type: string
+                          description: 미용실 주소
+                        business_hours:
+                          type: string
+                          description: 영업 시간
+                        ads:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                description: 광고 ID
+                              title:
+                                type: string
+                                description: 광고 제목
+                              media:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AdMedia'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      tags:
+        - salonAds
+      summary: 미용실 광고 등록
+      description: 특정 미용실의 새로운 광고를 등록합니다
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+                - salon_id
+              properties:
+                title:
+                  type: string
+                  description: 광고 제목
+                  maxLength: 100
+                salon_id:
+                  type: integer
+                  description: 미용실 ID
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: 광고 미디어 파일들 (이미지 또는 비디오)
+      responses:
+        '201':
+          description: 광고가 성공적으로 등록됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 광고가 성공적으로 저장되었습니다
+                  ad:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: 광고 ID
+                      title:
+                        type: string
+                        description: 광고 제목
+                      type:
+                        type: string
+                        enum: [salon]
+                        description: 광고 타입
+                      salon_id:
+                        type: integer
+                        description: 미용실 ID
+                      media:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdMedia'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 필수 입력값이 누락되었습니다
+                  details:
+                    type: string
+                    example: 제목과 미용실 ID는 필수입니다
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 권한이 없습니다
+                  details:
+                    type: string
+                    example: 해당 미용실의 소유자가 아닙니다
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 에러 메시지
+        details:
+          type: string
+          description: 상세 에러 내용

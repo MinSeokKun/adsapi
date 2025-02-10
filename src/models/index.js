@@ -30,11 +30,20 @@ Salon.belongsTo(User, {
   as: 'owner'
 });
 
+// Salon과의 관계 설정
+Salon.hasMany(Ad, {
+  foreignKey: 'salon_id'
+});
+Ad.belongsTo(Salon, {
+  foreignKey: 'salon_id'
+});
+
 // 모델 동기화
 const syncModels = async () => {
   try {
     // await sequelize.sync(); // 테이블 생성
-    await sequelize.sync({ alter: true }); // 테이블 재생성
+    // await sequelize.sync({ alter: true }); // 테이블 재생성
+    await sequelize.sync({ force: false }); // 프로덕션 환경에서는 force: false로 설정
     console.log('모델 동기화 완료');
   } catch (error) {
     console.error('모델 동기화 실패:', error);

@@ -6,6 +6,14 @@ const Ad = sequelize.define('Ad', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
+  type: {
+    type: DataTypes.ENUM('sponsor', 'salon'),
+    allowNull: false
+  },
+  salon_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

@@ -86,8 +86,8 @@ const loadSwaggerDocument = () => {
     const salonDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/salon.yaml'), 'utf8')
     );
-    const uploadDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/upload.yaml'), 'utf8')
+    const salonAdsDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/salonAds.yaml'), 'utf8')
     );
 
     // paths와 schemas 병합
@@ -96,7 +96,7 @@ const loadSwaggerDocument = () => {
       ...authDoc.paths,
       ...adsDoc.paths,
       ...salonDoc.paths,
-      ...uploadDoc.paths
+      ...salonAdsDoc.paths
     };
 
     mainDoc.components.schemas = {

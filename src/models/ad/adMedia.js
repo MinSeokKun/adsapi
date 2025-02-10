@@ -10,7 +10,7 @@ const AdMedia = Database.define('AdMedia', {
     type: DataTypes.ENUM('image', 'video'),
     allowNull: false
   },
-  order: {
+  order: { // 미디어 순서
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
