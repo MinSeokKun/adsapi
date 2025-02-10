@@ -4,7 +4,8 @@ const sequelize = require('../../config/database');
 const { Ad, AdMedia, AdSchedule } = require('../../models');
 const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const { sponsorAdUpload, handleUploadError } = require('../../middleware/uploadMiddleware');
-const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse } = require('../../utils/adUtils');
+const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse, parseSchedules } = require('../../utils/adUtils');
+const { storage } = require('../../config/storage')
 
 // 광고 조회
 router.get('/api/ads', 
@@ -110,7 +111,6 @@ router.post('/api/ads',
       transaction = await sequelize.transaction();
       
       const { title, schedules } = req.body;
-      const parsedSchedules = parseSchedules(schedules);
 
       // 1. 광고 기본 정보 저장
       const ad = await Ad.create({
@@ -123,25 +123,13 @@ router.post('/api/ads',
       await processSponsorAdMedia(req.files, ad.id, transaction);
       
       // 3. 스케줄 생성
-      const schedulePromises = parsedSchedules.map(time => 
-        AdSchedule.create({
-          ad_id: ad.id,
-          time: time + ':00:00',
-          is_active: true
-        }, { transaction })
-      );
-      
+      const parsedSchedules = await updateAdSchedules(id, schedules, transaction);
+
       await Promise.all(schedulePromises);
       await transaction.commit();
 
       // 생성된 광고 정보 조회
-      const createdAd = await Ad.findByPk(ad.id, {
-        include: [{
-          model: AdMedia,
-          as: 'media',
-          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-        }]
-      });
+      const createdAd = await getAdDetails(ad.id);
 
       res.status(201).json({ 
         message: '광고가 성공적으로 저장되었습니다',
@@ -186,7 +174,12 @@ router.put('/api/ads/:id',
 
       // 3. 미디어 파일 업데이트
       if (req.files.maxFiles || req.files.minFiles) {
-        await updateAdMedia(id, req.files, transaction);
+        await updateAdMedia({
+          adId: id,
+          files: req.files,
+          transaction,
+          type: 'sponsor'
+        });
       }
 
       // 4. 스케줄 업데이트
@@ -219,25 +212,61 @@ router.put('/api/ads/:id',
 
 // 광고 삭제
 router.delete('/api/ads/:id', 
-  // verifyToken, 
-  // isAdmin, 
+  verifyToken, 
+  isAdmin, 
   async (req, res) => {
-  try {
-    const { id } = req.params;
-    const ad = await Ad.findByPk(id);
+    const transaction = await sequelize.transaction();
+    
+    try {
+      const { id } = req.params;
+      
+      const ad = await Ad.findByPk(id, {
+        include: [{
+          model: AdMedia,
+          as: 'media',
+          attributes: ['url']
+        }]
+      });
 
-    if (!ad) {
-      return res.status(404).json({ error: '광고를 찾을 수 없습니다' });
+      if (!ad) {
+        return res.status(404).json({ error: '광고를 찾을 수 없습니다' });
+      }
+
+      // URL 로깅 추가
+      // console.log('미디어 URL들:', ad.media.map(media => media.url));
+
+      // 스토리지에서 미디어 파일 삭제 전에 각 URL 확인
+      for (const media of ad.media) {
+        // console.log('처리중인 URL:', media.url);
+        await storage.deleteFile(media.url);
+      }
+
+      await Promise.all([
+        AdMedia.destroy({ 
+          where: { ad_id: id },
+          transaction 
+        }),
+        AdSchedule.destroy({ 
+          where: { ad_id: id },
+          transaction 
+        }),
+        ad.destroy({ transaction })
+      ]);
+
+      await transaction.commit();
+      res.json({ message: '광고가 성공적으로 삭제되었습니다' });
+
+    } catch (error) {
+      await transaction.rollback();
+      console.error('광고 삭제 실패:', error);
+      console.error('에러 상세:', error.stack);  // 스택 트레이스 추가
+      res.status(500).json({ 
+        error: '광고 삭제 중 오류가 발생했습니다',
+        details: error.message 
+      });
     }
-
-    await ad.destroy();
-    res.json({ message: '광고가 삭제되었습니다' });
-
-  } catch (error) {
-    console.error('광고 삭제 실패:', error);
-    res.status(500).json({ error: '광고 삭제 중 오류가 발생했습니다' });
   }
-});
+);
 
 // 광고 스케줄 등록 및 수정
 router.post('/api/ads/schedule', 

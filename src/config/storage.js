@@ -79,15 +79,27 @@ class NCloudStorage {
    * @returns {Promise<void>}
    */
   async deleteFile(fileUrl) {
-    // URL에서 파일 키 추출
-    const key = fileUrl.split(`${this.bucketName}/`)[1];
-    
-    const params = {
-      Bucket: this.bucketName,
-      Key: key
-    };
-
-    await S3.deleteObject(params).promise();
+    try {
+      // URL을 파싱하여 경로 추출
+      const urlObject = new URL(fileUrl);
+      const key = urlObject.pathname.substring(1); // 첫 번째 '/' 제거
+      
+      if (!key) {
+        throw new Error('Invalid file URL: Unable to extract key');
+      }
+  
+      // console.log('Deleting file with key:', key); // 디버깅용 로그
+  
+      const params = {
+        Bucket: this.bucketName,
+        Key: key
+      };
+  
+      await S3.deleteObject(params).promise();
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      throw error;
+    }
   }
 
   /**
