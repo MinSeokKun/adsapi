@@ -28,6 +28,16 @@ paths:
     $ref: './auth.yaml#/paths/~1auth~1logout'
   /api/users/{userId}/role:
     $ref: './auth.yaml#/paths/~1api~1users~1{userId}~1role'
+
+  # localauth.yaml 파일의 경로들을 포함
+  /auth/signup:
+    $ref: './localauth.yaml#/paths/~1auth~1signup'
+  /auth/login:
+    $ref: './localauth.yaml#/paths/~1auth~1login'
+  /auth/forgot-password:
+    $ref: './localauth.yaml#/paths/~1auth~1forgot-password'
+  /auth/reset-password:
+    $ref: './localauth.yaml#/paths/~1auth~1reset-password'
     
   # ads.yaml 파일의 경로들을 포함
   /api/ads:

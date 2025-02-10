@@ -80,6 +80,9 @@ const loadSwaggerDocument = () => {
     const authDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/auth.yaml'), 'utf8')
     );
+    const localauthDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/localauth.yaml'), 'utf8')
+    );
     const adsDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/ads.yaml'), 'utf8')
     );
@@ -94,6 +97,7 @@ const loadSwaggerDocument = () => {
     mainDoc.paths = {
       ...mainDoc.paths,
       ...authDoc.paths,
+      ...localauthDoc.paths,
       ...adsDoc.paths,
       ...salonDoc.paths,
       ...salonAdsDoc.paths
