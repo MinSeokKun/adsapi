@@ -3,7 +3,7 @@ const router = express.Router();
 const sequelize = require('../../config/database');
 const { Ad, AdMedia, AdSchedule } = require('../../models');
 const multer = require('multer');
-const { storage, STORAGE_PATHS } = require('../../config/ncloudStorage');
+const { storage, STORAGE_PATHS } = require('../../config/nCloudStorage');
 const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 
 // 광고 조회
