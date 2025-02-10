@@ -1,6 +1,6 @@
 // src/utils/adUtils.js
 const { createMediaInfo } = require('./mediaUtils');
-const { storage, STORAGE_PATHS } = require('../config/nCloudstorage');
+const { storage, STORAGE_PATHS } = require('../config/storage');
 const { AdMedia, Ad, AdSchedule } = require('../models');
 
 const parseSchedules = (schedulesInput) => {
