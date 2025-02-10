@@ -3,7 +3,7 @@ const { createMediaInfo } = require('./mediaUtils');
 const { storage, STORAGE_PATHS } = require('../config/storage');
 const { AdMedia, Ad, AdSchedule } = require('../models');
 
-const parseSchedules = (schedulesInput) => {
+function parseSchedules (schedulesInput) {
   if (!schedulesInput) return [];
   
   try {
@@ -38,59 +38,83 @@ const parseSchedules = (schedulesInput) => {
 };
 
 /**
- * 스폰서 광고 미디어 파일 처리
+ * 통합된 광고 미디어 파일 처리 함수
+ * @param {Object} options - 파일 처리 옵션
+ * @param {Object} options.files - 업로드된 파일 객체
+ * @param {number} options.adId - 광고 ID
+ * @param {Object} options.transaction - DB 트랜잭션 객체
+ * @param {string} [options.type='sponsor'] - 광고 타입 ('sponsor' | 'salon')
+ * @param {number} [options.salonId] - 미용실 ID (salon 타입인 경우 필수)
+ * @param {Object} [options.fileConfig] - 파일 설정
+ * @param {string[]} [options.fileConfig.fields=['maxFiles', 'minFiles']] - 파일 필드명
+ * @param {Object} [options.sizeConfig] - 사이즈 설정
+ * @returns {Promise<Array>} 생성된 미디어 객체 배열
  */
-async function processSponsorAdMedia(files, adId, transaction) {
-  const mediaPromises = [];
-
-  // max size 파일 처리
-  if (files.maxFiles) {
-    for (const file of files.maxFiles) {
-      const fileUrl = await storage.uploadFile(file, STORAGE_PATHS.ADS, adId.toString());
-      const mediaInfo = await createMediaInfo(file, fileUrl, adId, 'max');
-      mediaPromises.push(AdMedia.create(mediaInfo, { transaction }));
+async function processAdMedia(options) {
+  const {
+    files,
+    adId,
+    transaction,
+    type = 'sponsor',
+    salonId,
+    fileConfig = {
+      fields: type === 'sponsor' ? ['maxFiles', 'minFiles'] : ['files']
+    },
+    sizeConfig = {
+      maxFiles: 'max',
+      minFiles: 'min',
+      files: 'min'
     }
-  }
+  } = options;
 
-  // min size 파일 처리
-  if (files.minFiles) {
-    for (const file of files.minFiles) {
-      const fileUrl = await storage.uploadFile(file, STORAGE_PATHS.ADS, adId.toString());
-      const mediaInfo = await createMediaInfo(file, fileUrl, adId, 'min');
-      mediaPromises.push(AdMedia.create(mediaInfo, { transaction }));
+  const mediaPromises = [];
+  const subFolder = type === 'salon' ? `salon_${salonId}` : adId.toString();
+
+  // 각 파일 필드 처리
+  for (const field of fileConfig.fields) {
+    if (files[field]) {
+      const fileList = Array.isArray(files[field]) ? files[field] : [files[field]];
+      
+      for (const [index, file] of fileList.entries()) {
+        const fileUrl = await storage.uploadFile(
+          file,
+          STORAGE_PATHS.ADS,
+          subFolder
+        );
+
+        const mediaInfo = await createMediaInfo(
+          file,
+          fileUrl,
+          adId,
+          sizeConfig[field],
+          type === 'salon' && index === 0 // 미용실 광고의 경우 첫 번째 파일을 대표 이미지로 설정
+        );
+
+        mediaPromises.push(AdMedia.create(mediaInfo, { transaction }));
+      }
     }
   }
 
   return Promise.all(mediaPromises);
 }
 
-/**
- * 미용실 광고 미디어 파일 처리
- */
+async function processSponsorAdMedia(files, adId, transaction) {
+  return processAdMedia({
+    files,
+    adId,
+    transaction,
+    type: 'sponsor'
+  });
+}
+
 async function processSalonAdMedia(files, adId, salonId, transaction) {
-  const mediaPromises = [];
-
-  if (files && files.files) {
-    for (const [index, file] of files.files.entries()) {
-      const fileUrl = await storage.uploadFile(
-        file, 
-        STORAGE_PATHS.ADS, 
-        `salon_${salonId}`
-      );
-      
-      const mediaInfo = await createMediaInfo(
-        file, 
-        fileUrl, 
-        adId, 
-        'min',
-        index === 0  // 첫 번째 파일을 대표 이미지로 설정
-      );
-      
-      mediaPromises.push(AdMedia.create(mediaInfo, { transaction }));
-    }
-  }
-
-  return Promise.all(mediaPromises);
+  return processAdMedia({
+    files,
+    adId,
+    salonId,
+    transaction,
+    type: 'salon'
+  });
 }
 
 /**
@@ -141,18 +165,65 @@ async function updateAdSchedules(adId, schedules, transaction) {
 }
 
 /**
- * 광고 미디어 업데이트
+ * 광고 미디어 파일들을 storage에서 삭제하는 함수
+ * @param {Array<AdMedia>} mediaList - 삭제할 미디어 객체 배열
+ * @returns {Promise<void>}
  */
-async function updateAdMedia(adId, files, transaction) {
-  // 기존 미디어 삭제
-  await AdMedia.destroy({
-    where: { ad_id: adId },
-    transaction
-  });
-
-  // 새로운 미디어 처리
-  return processSponsorAdMedia(files, adId, transaction);
+async function deleteMediaFiles(mediaList) {
+  const deletePromises = mediaList.map(media => 
+    storage.deleteFile(media.url).catch(error => {
+      console.error(`Failed to delete file from storage: ${media.url}`, error);
+      // 파일 삭제 실패는 전체 프로세스를 중단하지 않음
+    })
+  );
+  
+  await Promise.all(deletePromises);
 }
+
+/**
+ * 광고 미디어 업데이트 함수
+ * @param {Object} options - 업데이트 옵션
+ * @param {number} options.adId - 광고 ID
+ * @param {Object} options.files - 업로드된 파일 객체
+ * @param {Object} options.transaction - DB 트랜잭션 객체
+ * @param {string} [options.type='sponsor'] - 광고 타입 ('sponsor' | 'salon')
+ * @param {number} [options.salonId] - 미용실 ID (salon 타입인 경우)
+ */
+async function updateAdMedia(options) {
+  const { adId, files, transaction, type = 'sponsor', salonId } = options;
+  
+  try {
+    // 기존 미디어 조회
+    const existingMedia = await AdMedia.findAll({
+      where: { ad_id: adId },
+      transaction
+    });
+
+    // Storage에서 기존 파일 삭제
+    if (existingMedia.length > 0) {
+      await deleteMediaFiles(existingMedia);
+    }
+
+    // DB에서 기존 미디어 레코드 삭제
+    await AdMedia.destroy({
+      where: { ad_id: adId },
+      transaction
+    });
+
+    // 새로운 미디어 처리
+    return processAdMedia({
+      files,
+      adId,
+      transaction,
+      type,
+      ...(salonId && { salonId })
+    });
+  } catch (error) {
+    // 에러 발생 시 트랜잭션에서 처리되도록 에러를 상위로 전파
+    throw error;
+  }
+}
+
 
 /**
  * 광고 정보 조회
@@ -168,6 +239,7 @@ async function getAdDetails(adId) {
 }
 
 module.exports = {
+  parseSchedules,
   processSponsorAdMedia,
   processSalonAdMedia,
   formatAdResponse,
