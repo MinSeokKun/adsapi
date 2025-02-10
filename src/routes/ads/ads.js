@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const sequelize = require('../config/database');
-const { Ad, AdMedia, AdSchedule } = require('../models');
+const sequelize = require('../../config/database');
+const { Ad, AdMedia, AdSchedule } = require('../../models');
 const multer = require('multer');
-const ncloudStorage = require('../config/nCloudStorage');
-const { verifyToken, isAdmin, isSuperAdmin } = require('../middleware/auth');
+const { storage, STORAGE_PATHS } = require('../../config/ncloudStorage');
+const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 
+// 광고 조회
 router.get('/api/ads', verifyToken, async (req, res) => {
   try {
     const { time } = req.query;
@@ -58,7 +59,7 @@ router.get('/api/ads', verifyToken, async (req, res) => {
     res.status(500).json({ error: '서버 오류' });
   }
 });
-
+// 광고 전체 목록 조회 (삭제 할지도)
 router.get('/api/ads/list', verifyToken, async (req, res) => {
   try {
     const ads = await Ad.findAll({
@@ -148,6 +149,7 @@ const parseSchedules = (schedulesInput) => {
   }
 };
 
+// 광고 등록
 router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -158,7 +160,8 @@ router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => 
     // 1. 광고 기본 정보 저장
     const ad = await Ad.create({
       title,
-      is_active: true
+      is_active: true,
+      type: 'sponsor' // 스폰서 광고로 고정
     }, { transaction });
 
     // 2. 파일 업로드 및 미디어 정보 저장
@@ -167,7 +170,7 @@ router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => 
     // max size 파일 처리
     if (req.files.maxFiles) {
       for (const file of req.files.maxFiles) {
-        const fileUrl = await ncloudStorage.uploadFile(file);
+        const fileUrl = await storage.uploadFile(file, STORAGE_PATHS.ADS, ad.id.toString());
         mediaPromises.push(
           AdMedia.create({
             ad_id: ad.id,
@@ -184,7 +187,7 @@ router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => 
     // min size 파일 처리
     if (req.files.minFiles) {
       for (const file of req.files.minFiles) {
-        const fileUrl = await ncloudStorage.uploadFile(file);
+        const fileUrl = await storage.uploadFile(file, STORAGE_PATHS.ADS, ad.id.toString());
         mediaPromises.push(
           AdMedia.create({
             ad_id: ad.id,
@@ -251,6 +254,7 @@ router.post('/api/ads', verifyToken, isAdmin, uploadFields, async (req, res) => 
   }
 });
 
+// 광고 수정
 router.put('/api/ads/:id', verifyToken, isAdmin, uploadFields, async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -286,7 +290,7 @@ router.put('/api/ads/:id', verifyToken, isAdmin, uploadFields, async (req, res) 
     // max size 파일 처리
     if (req.files.maxFiles) {
       for (const file of req.files.maxFiles) {
-        const fileUrl = await ncloudStorage.uploadFile(file);
+        const fileUrl = await storage.uploadFile(file);
         mediaPromises.push(
           AdMedia.create({
             ad_id: id,
@@ -303,7 +307,7 @@ router.put('/api/ads/:id', verifyToken, isAdmin, uploadFields, async (req, res) 
     // min size 파일 처리
     if (req.files.minFiles) {
       for (const file of req.files.minFiles) {
-        const fileUrl = await ncloudStorage.uploadFile(file);
+        const fileUrl = await storage.uploadFile(file);
         mediaPromises.push(
           AdMedia.create({
             ad_id: id,
@@ -379,6 +383,7 @@ router.put('/api/ads/:id', verifyToken, isAdmin, uploadFields, async (req, res) 
   }
 });
 
+// 광고 삭제
 router.delete('/api/ads/:id', verifyToken, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -397,6 +402,7 @@ router.delete('/api/ads/:id', verifyToken, isAdmin, async (req, res) => {
   }
 });
 
+// 광고 스케줄 등록 및 수정
 router.post('/api/ads/schedule', verifyToken, isAdmin, async (req, res) => {
   const transaction = await sequelize.transaction();
   
