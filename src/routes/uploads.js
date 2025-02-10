@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const ncloudStorage = require('../config/nCloudStorage');
+const ncloudStorage = require('../config/storage');
 
 // 메모리에 임시 저장하는 multer 설정
 const upload = multer({
