@@ -281,4 +281,37 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
   }
 });
 
+router.get('/auth/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // 사용자 정보 조회
+    const user = await User.findOne({ 
+      where: { id: userId },
+      attributes: ['id', 'email', 'name', 'role', 'provider', 'profileImage', 'lastLogin'] 
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    // 클라이언트에 필요한 정보만 반환
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        provider: user.provider,
+        profileImage: user.profileImage,
+        lastLogin: user.lastLogin
+      }
+    });
+
+  } catch (error) {
+    console.error('사용자 정보 조회 실패:', error);
+    res.status(500).json({ message: '서버 오류' });
+  }
+});
+
 module.exports = router;
