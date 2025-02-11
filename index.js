@@ -15,6 +15,7 @@ const createSuperAdmin = require('./src/seeders/createSuperAdmin');
 const loadRoutes = require('./src/utils/routeLoader');
 const { verifyToken, isSuperAdmin } = require('./src/middleware/auth');
 const { requestLogger, errorLogger } = require('./src/middleware/logger');
+const logger = require('./src/config/winston');
 
 const app = express();
 
@@ -27,8 +28,8 @@ const limiter = rateLimit({
 // CORS 설정
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000'] // 공인 IP 추가
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000'],
+    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000', 'http://192.168.0.42:3000']
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000', 'http://192.168.0.42:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -60,8 +61,15 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // 에러 핸들러
-app.use((err, req, res, next) => {
-  console.error(err.stack);
+app.use((error, req, res, next) => {
+  logger.error('서버 에러 발생', {
+    error: {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+    }
+  })
   res.status(err.status || 500).json({
     error: process.env.NODE_ENV === 'production'
       ? 'Internal Server Error'
@@ -113,7 +121,7 @@ const loadSwaggerDocument = () => {
 
     return mainDoc;
   } catch (error) {
-    console.error('Swagger 문서 로드 실패:', error);
+    logger.error('Swagger 문서 로드 실패:', { error });
     throw error;
   }
 };
@@ -123,7 +131,7 @@ try {
   const swaggerDocument = loadSwaggerDocument();
   app.use('/api-docs', verifyToken, isSuperAdmin, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } catch (error) {
-  console.error('Swagger 문서 로드 실패:', error);
+  logger.error('Swagger 문서 로드 실패:', { error });
 }
 
 // 미들웨어 설정
@@ -152,7 +160,7 @@ const startServer = async () => {
       console.log(`Swagger 문서는 http://localhost:${port}/api-docs 에서 확인할 수 있습니다.`);
     });
   } catch (error) {
-    console.error('서버 시작 실패:', error);
+    logger.error('Swagger 문서 로드 실패:', { error });
     process.exit(1);
   }
 };
