@@ -14,6 +14,7 @@ require('./src/config/passport');
 const createSuperAdmin = require('./src/seeders/createSuperAdmin');
 const loadRoutes = require('./src/utils/routeLoader');
 const { verifyToken, isSuperAdmin } = require('./src/middleware/auth');
+const { requestLogger, errorLogger } = require('./src/middleware/logger');
 
 const app = express();
 
@@ -126,7 +127,11 @@ try {
 }
 
 // 미들웨어 설정
+app.use(requestLogger);
+
 app.use(express.json());
+
+app.use(errorLogger);
 
 // 모든 라우터 자동 로드
 loadRoutes(app, path.join(__dirname, 'src', 'routes'));
