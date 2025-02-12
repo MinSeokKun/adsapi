@@ -216,16 +216,16 @@ router.post('/auth/login', async (req, res) => {
     // Access Token 쿠키 설정
     res.cookie('jwt', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,  // ngrok은 https를 사용하므로 필요
+      sameSite: 'None',  // cross-site 쿠키 허용
       maxAge: 24 * 3600000
     });
 
     // Refresh Token 쿠키 설정
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,  // ngrok은 https를 사용하므로 필요
+      sameSite: 'None',  // cross-site 쿠키 허용
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
