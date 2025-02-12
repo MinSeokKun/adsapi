@@ -12,17 +12,41 @@ const { sanitizeData } = require('../../utils/sanitizer');
 router.get('/auth/google',
   (req, res, next) => {
     const { redirect_url } = req.query;
-    // redirect_url을 세션에 저장
-    req.session.redirect_url = redirect_url;
-    const logContext = {
-      requestId: req.id,
-      provider: 'google',
-      ip: req.ip,
-      path: req.path
-    };
     
-    logger.info('OAuth 인증 시도', sanitizeData(logContext));
-    next();
+    // 로그 추가
+    logger.info('OAuth 시작 - redirect_url 저장 시도', {
+      redirect_url,
+      sessionId: req.sessionID
+    });
+
+    // 세션에 저장
+    req.session.redirect_url = redirect_url;
+    
+    // 세션 저장이 완료된 후 진행
+    req.session.save((err) => {
+      if (err) {
+        logger.error('Session save error', {
+          error: err,
+          sessionId: req.sessionID
+        });
+        return res.redirect('/login');
+      }
+      
+      logger.info('Session saved successfully', {
+        sessionId: req.sessionID,
+        storedRedirectUrl: req.session.redirect_url
+      });
+
+      const logContext = {
+        requestId: req.id,
+        provider: 'google',
+        ip: req.ip,
+        path: req.path
+      };
+      
+      logger.info('OAuth 인증 시도', sanitizeData(logContext));
+      next();
+    });
   },
   passport.authenticate('google', { 
     scope: ['profile', 'email']
@@ -38,13 +62,16 @@ router.get('/auth/google/callback',
       provider: 'google',
       userId: req.user?.id,
       path: req.path,
-      sessionRedirectUrl: req.session.redirect_url // 로깅 추가
+      sessionId: req.sessionID,
+      sessionData: req.session,  // 전체 세션 데이터 확인
+      storedRedirectUrl: req.session.redirect_url
     };
+
+    logger.info('OAuth 콜백 처리 시작 - 세션 데이터 확인', sanitizeData(logContext));
 
     const redirectUrl = req.session.redirect_url || process.env.FRONTEND_URL;
     
     try {
-      logger.info('OAuth 콜백 처리 시작', sanitizeData(logContext));
 
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
@@ -73,7 +100,10 @@ router.get('/auth/google/callback',
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
-      logger.info('OAuth 인증 성공', sanitizeData(logContext));
+      logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
+        ...logContext,
+        finalRedirectUrl: redirectUrl
+      }));
       
       res.redirect(redirectUrl);
     } catch (error) {
