@@ -11,45 +11,20 @@ const { sanitizeData } = require('../../utils/sanitizer');
 // Google OAuth 로그인
 router.get('/auth/google',
   (req, res, next) => {
-    const { redirect_url } = req.query;
+    const logContext = {
+      requestId: req.id,
+      provider: 'google',
+      ip: req.ip,
+      path: req.path,
+      state: req.query.state
+    };
     
-    // 로그 추가
-    logger.info('OAuth 시작 - redirect_url 저장 시도', {
-      redirect_url,
-      sessionId: req.sessionID
-    });
-
-    // 세션에 저장
-    req.session.redirect_url = redirect_url;
-    
-    // 세션 저장이 완료된 후 진행
-    req.session.save((err) => {
-      if (err) {
-        logger.error('Session save error', {
-          error: err,
-          sessionId: req.sessionID
-        });
-        return res.redirect('/login');
-      }
-      
-      logger.info('Session saved successfully', {
-        sessionId: req.sessionID,
-        storedRedirectUrl: req.session.redirect_url
-      });
-
-      const logContext = {
-        requestId: req.id,
-        provider: 'google',
-        ip: req.ip,
-        path: req.path
-      };
-      
-      logger.info('OAuth 인증 시도', sanitizeData(logContext));
-      next();
-    });
+    logger.info('OAuth 인증 시도', sanitizeData(logContext));
+    next();
   },
   passport.authenticate('google', { 
-    scope: ['profile', 'email']
+    scope: ['profile', 'email'],
+    state: req.query.state // state 파라미터 전달
   })
 );
 
@@ -62,15 +37,23 @@ router.get('/auth/google/callback',
       provider: 'google',
       userId: req.user?.id,
       path: req.path,
-      sessionId: req.sessionID,
-      sessionData: req.session,  // 전체 세션 데이터 확인
-      storedRedirectUrl: req.session.redirect_url
+      state: req.query.state
     };
+
+    let redirectUrl = process.env.FRONTEND_URL; // 기본값
+
+    try {
+      // state 파라미터에서 redirect_url 추출
+      const stateData = JSON.parse(decodeURIComponent(req.query.state));
+      if (stateData.redirectUrl) {
+        redirectUrl = stateData.redirectUrl;
+      }
+    } catch (e) {
+      logger.error('State 파싱 실패', { error: e });
+    }
 
     logger.info('OAuth 콜백 처리 시작 - 세션 데이터 확인', sanitizeData(logContext));
 
-    const redirectUrl = req.session.redirect_url || process.env.FRONTEND_URL;
-    
     try {
 
       const accessToken = tokenHandler.generateAccessToken(req.user);
