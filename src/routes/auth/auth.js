@@ -22,10 +22,12 @@ router.get('/auth/google',
     logger.info('OAuth 인증 시도', sanitizeData(logContext));
     next();
   },
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'],
-    state: req.query.state // state 파라미터 전달
-  })
+  (req, res, next) => {
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'],
+      state: req.query.state
+    })(req, res, next);
+  }
 );
 
 // Google OAuth 콜백
