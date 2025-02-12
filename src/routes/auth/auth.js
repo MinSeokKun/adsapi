@@ -11,6 +11,9 @@ const { sanitizeData } = require('../../utils/sanitizer');
 // Google OAuth 로그인
 router.get('/auth/google',
   (req, res, next) => {
+    const { redirect_url } = req.query;
+    // redirect_url을 세션에 저장
+    req.session.redirect_url = redirect_url;
     const logContext = {
       requestId: req.id,
       provider: 'google',
@@ -37,6 +40,8 @@ router.get('/auth/google/callback',
       path: req.path
     };
 
+    const redirectUrl = req.session.redirect_url || process.env.FRONTEND_URL;
+    
     try {
       logger.info('OAuth 콜백 처리 시작', sanitizeData(logContext));
 
@@ -69,7 +74,7 @@ router.get('/auth/google/callback',
 
       logger.info('OAuth 인증 성공', sanitizeData(logContext));
       
-      res.redirect('/');
+      res.redirect(redirectUrl);
     } catch (error) {
       logger.error('OAuth 콜백 처리 실패', sanitizeData({
         ...logContext,
