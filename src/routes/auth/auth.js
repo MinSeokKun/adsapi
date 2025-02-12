@@ -322,6 +322,11 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
 router.get('/auth/me', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const logContext = {
+      requestId: req.id,
+      userId: userId,
+      path: req.path,
+    };
     
     // 사용자 정보 조회
     const user = await User.findOne({ 
@@ -347,6 +352,15 @@ router.get('/auth/me', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
+    logger.error('사용자 정보 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
     console.error('사용자 정보 조회 실패:', error);
     res.status(500).json({ message: '서버 오류' });
   }

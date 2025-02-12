@@ -28,6 +28,8 @@ paths:
     $ref: './auth.yaml#/paths/~1auth~1logout'
   /api/users/{userId}/role:
     $ref: './auth.yaml#/paths/~1api~1users~1{userId}~1role'
+  /auth/me:
+    $ref: './auth.yaml#/paths/~1auth~1me'
 
   # localauth.yaml 파일의 경로들을 포함
   /auth/signup:
