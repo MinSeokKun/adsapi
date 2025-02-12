@@ -37,7 +37,8 @@ router.get('/auth/google/callback',
       requestId: req.id,
       provider: 'google',
       userId: req.user?.id,
-      path: req.path
+      path: req.path,
+      sessionRedirectUrl: req.session.redirect_url // 로깅 추가
     };
 
     const redirectUrl = req.session.redirect_url || process.env.FRONTEND_URL;
