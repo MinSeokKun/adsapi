@@ -51,19 +51,19 @@ router.get('/auth/google/callback',
         { where: { id: req.user.id } }
       );
 
-      // 쿠키 설정
+      // Access Token 쿠키 설정
       res.cookie('jwt', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000
+        secure: true,  // ngrok은 https를 사용하므로 필요
+        sameSite: 'None',  // cross-site 쿠키 허용
+        maxAge: 24 * 3600000
       });
-      
+
+      // Refresh Token 쿠키 설정
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/auth/refresh-token',
+        secure: true,  // ngrok은 https를 사용하므로 필요
+        sameSite: 'None',  // cross-site 쿠키 허용
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
@@ -128,20 +128,37 @@ router.get('/auth/kakao/callback',
         { where: { id: req.user.id } }
       );
 
+      // res.cookie('jwt', accessToken, {
+      //   httpOnly: true,
+      //   secure: process.env.NODE_ENV === 'production',
+      //   sameSite: 'strict',
+      //   maxAge: 24 * 60 * 60 * 1000
+      // });
+      
+      // res.cookie('refreshToken', refreshToken, {
+      //   httpOnly: true,
+      //   secure: process.env.NODE_ENV === 'production',
+      //   sameSite: 'strict',
+      //   path: '/auth/refresh-token',
+      //   maxAge: 7 * 24 * 60 * 60 * 1000
+      // });
+
+      // Access Token 쿠키 설정
       res.cookie('jwt', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000
+        secure: true,  // ngrok은 https를 사용하므로 필요
+        sameSite: 'None',  // cross-site 쿠키 허용
+        maxAge: 24 * 3600000
       });
-      
+
+      // Refresh Token 쿠키 설정
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/auth/refresh-token',
+        secure: true,  // ngrok은 https를 사용하므로 필요
+        sameSite: 'None',  // cross-site 쿠키 허용
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
+      
 
       logger.info('OAuth 인증 성공', sanitizeData(logContext));
       
@@ -187,15 +204,15 @@ router.get('/auth/logout', (req, res) => {
 
     res.clearCookie('jwt', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      secure: true,  // ngrok 사용시 필요
+      sameSite: 'None'  // cross-site 상황이므로 None으로 설정
     });
     
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh-token'
+      secure: true,
+      sameSite: 'None',
+      // path: '/auth/refresh-token'
     });
 
     if (req.user?.id) {
