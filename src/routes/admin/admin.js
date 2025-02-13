@@ -117,6 +117,13 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     // 페이지네이션 파라미터
     const limit = parseInt(req.query.limit) || 20;
     const lastId = parseInt(req.query.lastId);
+    const page = parseInt(req.query.page) || 1; // 현재 페이지 추가
+    
+     // 전체 사용자 수 조회
+    const totalUsers = await User.count();
+
+    // 전체 페이지 수 계산
+    const totalPages = Math.ceil(totalUsers / limit);
     
     // 검색 및 필터링 파라미터
     const {
@@ -196,9 +203,13 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     res.json({
       users,
       pageInfo: {
+        totalUsers,
+        totalPages,
+        currentPage: page,
         hasNextPage,
         nextPageParams: hasNextPage ? {
           lastId: lastUser.id,
+          page: page + 1,
           // 검색 및 필터 파라미터 유지
           ...(search && { search }),
           ...(role && { role }),
@@ -222,6 +233,7 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     logger.error('회원 목록 조회 실패', sanitizeData({
       ...logContext,
       error: {
