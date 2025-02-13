@@ -28,8 +28,17 @@ const limiter = rateLimit({
 // CORS 설정
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000', 'http://192.168.0.42:3000', '*']
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000', 'http://192.168.0.42:3000', '*'],
+    ? [
+        process.env.FRONTEND_URL,
+        'https://ads-web-seven.vercel.app',
+        'https://f70b-182-220-6-227.ngrok-free.app'
+      ]
+    : [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://182.220.6.227:3000',
+        'http://192.168.0.42:3000'
+      ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
