@@ -79,6 +79,49 @@ router.get('/api/logs/search',
   })
 );
 
+router.get('/api/logs/content',
+  verifyToken, isSuperAdmin,
+  apiLimiter,
+  query('file').isString().notEmpty(),
+  query('type').isIn(['error', 'combined']),
+  asyncHandler(async (req, res) => {
+    const { file, type } = req.query;
+    const logDir = path.join(__dirname, '../../logs', type);
+    const logPath = path.join(logDir, file);
+
+    // 경로 검증 (directory traversal 방지)
+    if (!logPath.startsWith(logDir)) {
+      return res.status(400).json({
+        error: '잘못된 파일 경로입니다.'
+      });
+    }
+
+    try {
+      const content = await fs.readFile(logPath, 'utf8');
+      const logs = content
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          try {
+            return JSON.parse(line);
+          } catch (e) {
+            return { message: line };
+          }
+        });
+
+      res.json({
+        success: true,
+        content: logs
+      });
+    } catch (error) {
+      logger.error('로그 파일 읽기 실패', { error, file });
+      res.status(500).json({
+        error: '로그 파일을 읽을 수 없습니다.'
+      });
+    }
+  })
+);
+
 // 오래된 로그 정리
 router.post('/api/logs/clean',
   verifyToken, isSuperAdmin,
