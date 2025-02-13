@@ -105,11 +105,6 @@ paths:
             default: 20
           description: 한 페이지당 항목 수
         - in: query
-          name: lastId
-          schema:
-            type: integer
-          description: 마지막으로 조회한 사용자의 ID (키셋 페이징)
-        - in: query
           name: search
           schema:
             type: string
@@ -213,9 +208,6 @@ paths:
                         type: object
                         nullable: true
                         properties:
-                          lastId:
-                            type: integer
-                            description: 다음 페이지 시작 ID
                           search:
                             type: string
                             description: 검색어

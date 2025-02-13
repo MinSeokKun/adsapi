@@ -116,14 +116,8 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     
     // 페이지네이션 파라미터
     const limit = parseInt(req.query.limit) || 20;
-    const lastId = parseInt(req.query.lastId);
-    const page = parseInt(req.query.page) || 1; // 현재 페이지 추가
-    
-     // 전체 사용자 수 조회
-    const totalUsers = await User.count();
-
-    // 전체 페이지 수 계산
-    const totalPages = Math.ceil(totalUsers / limit);
+    const page = parseInt(req.query.page) || 1;
+    const offset = (page - 1) * limit;
     
     // 검색 및 필터링 파라미터
     const {
@@ -139,11 +133,6 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     // WHERE 절 생성
     const whereClause = {};
     
-    // 키셋 페이징 조건
-    if (lastId) {
-      whereClause.id = { [Op.lt]: lastId };
-    }
-
     // 검색 조건
     if (search) {
       whereClause[Op.or] = [
@@ -181,6 +170,7 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     const users = await User.findAll({
       where: whereClause,
       limit,
+      offset,
       order,
       attributes: [
         'id',
@@ -195,8 +185,9 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
     });
 
     // 다음 페이지 정보
-    const hasNextPage = users.length === limit;
-    const lastUser = users[users.length - 1];
+    const totalUsers = await User.count({ where: whereClause });
+    const totalPages = Math.ceil(totalUsers / limit);
+    const hasNextPage = page < totalPages;
 
     logger.info('회원 목록 조회 성공', sanitizeData(logContext));
     
@@ -207,20 +198,8 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
         totalPages,
         currentPage: page,
         hasNextPage,
-        nextPageParams: hasNextPage ? {
-          lastId: lastUser.id,
-          page: page + 1,
-          // 검색 및 필터 파라미터 유지
-          ...(search && { search }),
-          ...(role && { role }),
-          ...(provider && { provider }),
-          ...(startDate && { startDate }),
-          ...(endDate && { endDate }),
-          sortBy,
-          sortDir
-        } : null
+        limit
       },
-      // 현재 적용된 필터 정보
       filters: {
         search,
         role,
