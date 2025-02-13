@@ -18,7 +18,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 // 로그 파일 목록 조회
-router.get('/files', 
+router.get('/api/logs/files', 
   verifyToken, isSuperAdmin, apiLimiter,
   asyncHandler(async (req, res) => {
     const files = await logManager.getLogFiles();
@@ -30,7 +30,7 @@ router.get('/files',
 );
   
 // 로그 레벨 변경
-router.post('/level',
+router.post('/api/logs//level',
   verifyToken, isSuperAdmin,
   apiLimiter,
   body('level').isIn(['error', 'warn', 'info', 'http', 'debug']),
@@ -56,7 +56,7 @@ router.post('/level',
 );
 
 // 로그 검색
-router.get('/search',
+router.get('/api/logs//search',
   verifyToken, isSuperAdmin,
   apiLimiter,
   query('requestId').isString().trim().notEmpty(),
@@ -80,7 +80,7 @@ router.get('/search',
 );
 
 // 오래된 로그 정리
-router.post('/clean',
+router.post('/api/logs//clean',
   verifyToken, isSuperAdmin,
   apiLimiter,
   body('days').optional().isInt({ min: 1, max: 365 }),
