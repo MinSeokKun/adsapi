@@ -30,7 +30,7 @@ router.get('/api/logs/files',
 );
   
 // 로그 레벨 변경
-router.post('/api/logs//level',
+router.post('/api/logs/level',
   verifyToken, isSuperAdmin,
   apiLimiter,
   body('level').isIn(['error', 'warn', 'info', 'http', 'debug']),
@@ -56,7 +56,7 @@ router.post('/api/logs//level',
 );
 
 // 로그 검색
-router.get('/api/logs//search',
+router.get('/api/logs/search',
   verifyToken, isSuperAdmin,
   apiLimiter,
   query('requestId').isString().trim().notEmpty(),
@@ -80,7 +80,7 @@ router.get('/api/logs//search',
 );
 
 // 오래된 로그 정리
-router.post('/api/logs//clean',
+router.post('/api/logs/clean',
   verifyToken, isSuperAdmin,
   apiLimiter,
   body('days').optional().isInt({ min: 1, max: 365 }),
