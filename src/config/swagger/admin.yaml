@@ -1,0 +1,84 @@
+paths:
+  /api/admin/dashboard:
+    get:
+      tags:
+        - admin
+      summary: 관리자 대시보드 데이터 조회
+      description: 관리자 대시보드에 필요한 통계 데이터와 최근 정보들을 조회합니다
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 성공적으로 대시보드 데이터를 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    properties:
+                      totalUsers:
+                        type: integer
+                        description: 전체 사용자 수
+                      totalAds:
+                        type: integer
+                        description: 활성화된 광고 수
+                      totalSalons:
+                        type: integer
+                        description: 전체 미용실 수
+                  recentUsers:
+                    type: array
+                    description: 최근 가입한 사용자 목록
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        email:
+                          type: string
+                        provider:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  recentAds:
+                    type: array
+                    description: 최근 등록된 광고 목록
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        title:
+                          type: string
+                        type:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  recentSalons:
+                    type: array
+                    description: 최근 등록된 미용실 목록
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        address:
+                          type: string
+                        ownerName:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+        '401':
+          description: 인증 실패
+        '403':
+          description: 권한 없음
+        '500':
+          description: 서버 오류
