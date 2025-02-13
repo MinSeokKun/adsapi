@@ -4,6 +4,7 @@ const { User, Salon, Ad, AdMedia, AdSchedule } = require('../../models');
 const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
+const { Op } = require('sequelize');
 
 // 관리자 대시보드
 router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) => {
@@ -94,7 +95,7 @@ router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) =
         code: error.code,
         stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
       }
-    }))
+    }));
     res.status(500).json({ 
       error: '대시보드 데이터 조회 중 오류가 발생했습니다',
       details: error.message 
@@ -104,6 +105,137 @@ router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) =
 
 // 전체 회원 조회
 router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
+  const logContext = {
+    requestId: req.id,
+    userId: req.user?.id,
+    path: req.path
+  };
+
+  try {
+    logger.info('회원 목록 조회 시작', sanitizeData(logContext));
+    
+    // 페이지네이션 파라미터
+    const limit = parseInt(req.query.limit) || 20;
+    const lastId = parseInt(req.query.lastId);
+    
+    // 검색 및 필터링 파라미터
+    const {
+      search,           // 검색어 (이름, 이메일)
+      role,            // 권한 (user, admin, superadmin)
+      provider,        // 로그인 제공자 (google, kakao, local)
+      startDate,       // 가입일 범위 시작
+      endDate,         // 가입일 범위 끝
+      sortBy = 'id',   // 정렬 기준
+      sortDir = 'DESC' // 정렬 방향
+    } = req.query;
+
+    // WHERE 절 생성
+    const whereClause = {};
+    
+    // 키셋 페이징 조건
+    if (lastId) {
+      whereClause.id = { [Op.lt]: lastId };
+    }
+
+    // 검색 조건
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    // 필터링 조건
+    if (role) {
+      whereClause.role = role;
+    }
+
+    if (provider) {
+      whereClause.provider = provider;
+    }
+
+    // 날짜 범위 필터
+    if (startDate && endDate) {
+      whereClause.createdAt = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    }
+
+    // 정렬 옵션
+    const order = [];
+    if (['id', 'name', 'email', 'createdAt', 'lastLogin'].includes(sortBy)) {
+      order.push([sortBy, sortDir]);
+    }
+    // ID는 항상 마지막 정렬 조건으로 추가 (중복 방지)
+    if (sortBy !== 'id') {
+      order.push(['id', 'DESC']);
+    }
+
+    const users = await User.findAll({
+      where: whereClause,
+      limit,
+      order,
+      attributes: [
+        'id',
+        'email',
+        'name',
+        'role',
+        'provider',
+        'lastLogin',
+        'createdAt',
+        'updatedAt'
+      ]
+    });
+
+    // 다음 페이지 정보
+    const hasNextPage = users.length === limit;
+    const lastUser = users[users.length - 1];
+
+    logger.info('회원 목록 조회 성공', sanitizeData(logContext));
+    
+    res.json({
+      users,
+      pageInfo: {
+        hasNextPage,
+        nextPageParams: hasNextPage ? {
+          lastId: lastUser.id,
+          // 검색 및 필터 파라미터 유지
+          ...(search && { search }),
+          ...(role && { role }),
+          ...(provider && { provider }),
+          ...(startDate && { startDate }),
+          ...(endDate && { endDate }),
+          sortBy,
+          sortDir
+        } : null
+      },
+      // 현재 적용된 필터 정보
+      filters: {
+        search,
+        role,
+        provider,
+        startDate,
+        endDate,
+        sortBy,
+        sortDir
+      }
+    });
+
+  } catch (error) {
+    logger.error('회원 목록 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }))
+    res.status(500).json({ 
+      error: '서버 오류',
+      details: error.message 
+    });
+  }
 
 });
 
@@ -115,51 +247,6 @@ router.get('/api/admin/ads', verifyToken, isSuperAdmin, async (req, res) => {
     path: req.path
   };
 
-  try {
-    logger.info('광고 목록 조회 시작', sanitizeData(logContext));
-
-    const ads = await Ad.findAll({
-      include: [{
-        model: AdMedia,
-        as: 'media',
-        attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-      }],
-      where: {
-        is_active: true
-      }
-    });
-
-    logger.info('광고 목록 조회 완료', sanitizeData({
-      ...logContext,
-      adCount: ads.length
-    }));
-
-    res.json({ 
-      ads: ads.map(ad => ({
-        id: ad.id,
-        title: ad.title,
-        media: ad.media.map(media => ({
-          url: media.url,
-          type: media.type,
-          duration: media.duration,
-          size: media.size,
-          is_primary: media.is_primary
-        }))
-      }))
-    });
-
-  } catch (error) {
-    logger.error('광고 목록 조회 실패', sanitizeData({
-      ...logContext,
-      error: {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-      }
-    }));
-    res.status(500).json({ error: '서버 오류' });
-  }
 });
 
 module.exports = router;

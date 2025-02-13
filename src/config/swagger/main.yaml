@@ -66,6 +66,8 @@ paths:
   # admin.yaml 파일의 경로들을 포함
   /api/admin/dashboard:
     $ref: './admin.yaml#/paths/~1adpi~1admin~1dashboard'
+  /api/admin/users:
+    $ref: './admin.yaml#/paths/~1api~1admin~1users'
 
 components:
   schemas:
