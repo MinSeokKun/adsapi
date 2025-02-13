@@ -29,7 +29,7 @@ const Salon = sequelize.define('Salon', {
 },
 {
     tableName: 'salons',
-    timestamps: false,
+    timestamps: true,
     underscored: true
 });
 

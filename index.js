@@ -28,8 +28,8 @@ const limiter = rateLimit({
 // CORS 설정
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000', 'http://192.168.0.42:3000']
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000', 'http://192.168.0.42:3000'],
+    ? [process.env.FRONTEND_URL, 'http://182.220.6.227:3000', 'http://192.168.0.42:3000', '*']
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://182.220.6.227:3000', 'http://192.168.0.42:3000', '*'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -101,6 +101,9 @@ const loadSwaggerDocument = () => {
     const salonAdsDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/salonAds.yaml'), 'utf8')
     );
+    const adminDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/admin.yaml'), 'utf8')
+    );
 
     // paths와 schemas 병합
     mainDoc.paths = {
@@ -109,7 +112,8 @@ const loadSwaggerDocument = () => {
       ...localauthDoc.paths,
       ...adsDoc.paths,
       ...salonDoc.paths,
-      ...salonAdsDoc.paths
+      ...salonAdsDoc.paths,
+      ...adminDoc.paths
     };
 
     mainDoc.components.schemas = {

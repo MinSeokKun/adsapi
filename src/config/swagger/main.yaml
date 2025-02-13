@@ -13,6 +13,8 @@ tags:
     description: 미용실 관리 API
   - name: salonAds
     description: 미용실 광고 관리 API
+  - name: admin
+    description: 관리자용 관리 API
 
 paths:
   # auth.yaml 파일의 경로들을 포함
@@ -60,6 +62,10 @@ paths:
   # salonAds.yaml 파일의 경로들을 포함
   /api/ads/salon:
     $ref: './salonAds.yaml#/paths/~1api~1ads~1salon'
+
+  # admin.yaml 파일의 경로들을 포함
+  /api/admin/dashboard:
+    $ref: './admin.yaml#/paths/~1adpi~1admin~1dashboard'
 
 components:
   schemas:
