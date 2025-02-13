@@ -5,6 +5,8 @@ const logManager = require('../../utils/logManager');
 const { verifyToken, isSuperAdmin } = require('../../middleware/auth');
 const logger = require('../../config/winston');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs').promises;
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15분
@@ -85,19 +87,34 @@ router.get('/api/logs/content',
   query('file').isString().notEmpty(),
   query('type').isIn(['error', 'combined']),
   asyncHandler(async (req, res) => {
-    const { file, type } = req.query;
-    const logDir = path.join(__dirname, '../../logs', type);
-    const logPath = path.join(logDir, file);
-
-    // 경로 검증 (directory traversal 방지)
-    if (!logPath.startsWith(logDir)) {
-      return res.status(400).json({
-        error: '잘못된 파일 경로입니다.'
-      });
-    }
-
     try {
-      const content = await fs.readFile(logPath, 'utf8');
+      const { file, type } = req.query;
+      
+      if (!file || !type) {
+        return res.status(400).json({
+          success: false,
+          message: '파일명과 타입은 필수 파라미터입니다.'
+        });
+      }
+  
+      // 로그 디렉토리 경로 설정
+      const logDir = path.join(__dirname, '../../../logs');
+      const targetDir = type === 'error' ? 'error' : 'combined';
+      const filePath = path.join(logDir, targetDir, file);
+  
+      // 파일 존재 여부 확인
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        logger.error('로그 파일이 존재하지 않음', { file, type, error });
+        return res.status(404).json({
+          success: false,
+          message: '요청한 로그 파일을 찾을 수 없습니다.'
+        });
+      }
+  
+      // 파일 읽기
+      const content = await fs.readFile(filePath, 'utf8');
       const logs = content
         .split('\n')
         .filter(line => line.trim())
@@ -105,18 +122,21 @@ router.get('/api/logs/content',
           try {
             return JSON.parse(line);
           } catch (e) {
-            return { message: line };
+            return { message: line, timestamp: new Date().toISOString() };
           }
         });
-
-      res.json({
+  
+      return res.json({
         success: true,
         content: logs
       });
+  
     } catch (error) {
-      logger.error('로그 파일 읽기 실패', { error, file });
-      res.status(500).json({
-        error: '로그 파일을 읽을 수 없습니다.'
+      logger.error('로그 파일 읽기 중 에러 발생', { error });
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: '로그 파일을 읽는 중 오류가 발생했습니다.'
       });
     }
   })
