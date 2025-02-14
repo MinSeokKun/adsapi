@@ -56,6 +56,7 @@ router.get('/api/ads',
         ads: ads.map(ad => ({
           id: ad.id,
           title: ad.title,
+          type: ad.type,
           media: ad.media.map(media => ({
             url: media.url,
             type: media.type,
@@ -119,6 +120,7 @@ router.get('/api/ads/list',
         ads: ads.map(ad => ({
           id: ad.id,
           title: ad.title,
+          type: ad.type,
           media: ad.media.map(media => ({
             url: media.url,
             type: media.type,
