@@ -15,6 +15,8 @@ tags:
     description: 미용실 광고 관리 API
   - name: admin
     description: 관리자용 관리 API
+  - name: subscription
+    description: 구독 플랜 관리 API
 
 paths:
   # auth.yaml 파일의 경로들을 포함
@@ -69,6 +71,14 @@ paths:
   /api/admin/users:
     $ref: './admin.yaml#/paths/~1api~1admin~1users'
 
+  # subscription.yaml 파일의 경로들을 포함
+  /api/subscription-plans:
+    $ref: './subscription.yaml#/paths/~1api~1subscription-plans'
+  /api/admin/subscription-plans:
+    $ref: './subscription.yaml#/paths/~1api~1admin~1subscription-plans'
+  /api/admin/subscription-plans/{planId}:
+    $ref: './subscription.yaml#/paths/~1api~1admin~1subscription-plans~1{planId}'
+
 components:
   schemas:
     # auth.yaml의 스키마들을 포함
@@ -90,3 +100,13 @@ components:
     # salon.yaml의 스키마들을 포함
     Salon:
       $ref: './salon.yaml#/components/schemas/Salon'
+
+    # subscription.yaml의 스키마들을 포함
+    SubscriptionPlan:
+      $ref: './subscription.yaml#/components/schemas/SubscriptionPlan'
+    PlanFeatures:
+      $ref: './subscription.yaml#/components/schemas/PlanFeatures'
+    SubscriptionPlanRequest:
+      $ref: './subscription.yaml#/components/schemas/SubscriptionPlanRequest'
+    SubscriptionPlanUpdateRequest:
+      $ref: './subscription.yaml#/components/schemas/SubscriptionPlanUpdateRequest'
