@@ -7,7 +7,7 @@ const { sponsorAdUpload, handleUploadError } = require('../../middleware/uploadM
 const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse, parseSchedules } = require('../../utils/adUtils');
 const { storage } = require('../../config/storage')
 const logger = require('../../config/winston');
-const sanitizeData = require('../../utils/sanitizer');
+const { sanitizeData } = require('../../utils/sanitizer');
 
 // 광고 조회
 router.get('/api/ads', 

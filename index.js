@@ -114,7 +114,9 @@ const loadSwaggerDocument = () => {
     const adminDoc = yaml.load(
       fs.readFileSync(path.join(__dirname, 'src/config/swagger/admin.yaml'), 'utf8')
     );
-
+    const planDoc = yaml.load(
+      fs.readFileSync(path.join(__dirname, 'src/config/swagger/subscription.yaml'), 'utf8')
+    );
     // paths와 schemas 병합
     mainDoc.paths = {
       ...mainDoc.paths,
@@ -123,14 +125,16 @@ const loadSwaggerDocument = () => {
       ...adsDoc.paths,
       ...salonDoc.paths,
       ...salonAdsDoc.paths,
-      ...adminDoc.paths
+      ...adminDoc.paths,
+      ...planDoc.paths,
     };
 
     mainDoc.components.schemas = {
       ...mainDoc.components.schemas,
       ...authDoc.components.schemas,
       ...adsDoc.components.schemas,
-      ...salonDoc.components.schemas
+      ...salonDoc.components.schemas,
+      ...planDoc.components.schemas
     };
 
     return mainDoc;
