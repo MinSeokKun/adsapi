@@ -9,11 +9,11 @@ exports.verifyToken = async (req, res, next) => {
     const accessToken = req.cookies.jwt;
     const refreshToken = req.cookies.refreshToken;
 
-    logger.info('토큰 검증 시작', {
-      requestId: req.id,
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken
-    });
+    // logger.info('토큰 검증 시작', {
+    //   requestId: req.id,
+    //   hasAccessToken: !!accessToken,
+    //   hasRefreshToken: !!refreshToken
+    // });
     
     // access token이 없는 경우
     if (!accessToken) {
@@ -134,12 +134,12 @@ exports.verifyToken = async (req, res, next) => {
 
 // 관리자 권한 체크 미들웨어
 exports.isAdmin = async (req, res, next) => {
-  logger.info('관리자 권한 확인', {
-    requestId: req.id,
-    userId: req.user?.id,
-    userRole: req.user?.role,
-    path: req.path
-  });
+  // logger.info('관리자 권한 확인', {
+  //   requestId: req.id,
+  //   userId: req.user?.id,
+  //   userRole: req.user?.role,
+  //   path: req.path
+  // });
   if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
     logger.warn('관리자 권한 없음', {
       requestId: req.id,
@@ -154,12 +154,12 @@ exports.isAdmin = async (req, res, next) => {
 
 // 슈퍼관리자 권한 체크 미들웨어
 exports.isSuperAdmin = async (req, res, next) => {
-  logger.info('슈퍼관리자 권한 확인', {
-    requestId: req.id,
-    userId: req.user?.id,
-    userRole: req.user?.role,
-    path: req.path
-  });
+  // logger.info('슈퍼관리자 권한 확인', {
+  //   requestId: req.id,
+  //   userId: req.user?.id,
+  //   userRole: req.user?.role,
+  //   path: req.path
+  // });
   if (!req.user || req.user.role !== 'superadmin') {
     logger.warn('슈퍼관리자 권한 없음', {
       requestId: req.id,
