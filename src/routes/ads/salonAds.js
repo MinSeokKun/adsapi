@@ -7,7 +7,7 @@ const { salonAdUpload, handleUploadError } = require('../../middleware/uploadMid
 const { processSalonAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse, parseSchedules } = require('../../utils/adUtils');
 const storage = require('../../config/storage');
 const logger = require('../../config/winston');
-const sanitizeData = require('../../utils/sanitizer');
+const { sanitizeData } = require('../../utils/sanitizer');
 
 // 미용실 개인 광고 조회
 router.get('/api/ads/salon', verifyToken, async (req, res) => {
