@@ -11,7 +11,7 @@ const Payment = sequelize.define('Payment', {
     defaultValue: 'KRW'
   },
   payment_method: {
-    type: DataTypes.ENUM('card', 'bank_transfer', 'virtual_account'),
+    type: DataTypes.STRING(20),  // ENUM 대신 STRING으로 변경
     allowNull: false
   },
   payment_status: {
