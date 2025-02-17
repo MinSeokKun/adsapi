@@ -38,7 +38,7 @@ class TossController {
 
       // 결제 성공 처리
       console.log('[Toss Payment] Processing payment success...');
-      await this.handlePaymentSuccess(response.data);
+      await this.handleSuccess(response.data);
       
       console.log('[Toss Payment] Payment successfully completed');
       res.status(200).json(response.data);
@@ -49,7 +49,7 @@ class TossController {
         message: error.message
       });
 
-      await this.handlePaymentError(error);
+      await this.handleFail(error);
       
       res.status(error.response?.status || 500).json(error.response?.data || {
         message: '결제 처리 중 오류가 발생했습니다.',

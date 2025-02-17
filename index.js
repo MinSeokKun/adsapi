@@ -47,6 +47,8 @@ const corsOptions = {
   maxAge: 600
 };
 
+app.set('trust proxy', 1);
+
 app.use(helmet()); // 기본 보안 헤더 설정
 app.use(cors(corsOptions));
 app.use(limiter);
