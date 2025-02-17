@@ -9,14 +9,8 @@ class TossController {
   // 결제 승인 요청 처리
   async confirmPayment(req, res) {
     try {
-      const { paymentKey, orderId, amount, subscriptionId } = req.body;
+      const { paymentKey, orderId, amount } = req.body;
       
-      // 구독 정보 확인
-      const subscription = await Subscription.findByPk(subscriptionId);
-      if (!subscription) {
-        throw new Error('구독 정보를 찾을 수 없습니다.');
-      }
-
       // 토스페이먼츠 API 인증키 생성
       const encryptedSecretKey = Buffer.from(this.secretKey + ':').toString('base64');
 
@@ -37,7 +31,7 @@ class TossController {
       );
 
       // 결제 성공 처리
-      await this.handlePaymentSuccess(response.data, subscription);
+      await this.handlePaymentSuccess(response.data);
       
       res.status(200).json(response.data);
     } catch (error) {
@@ -49,99 +43,89 @@ class TossController {
     }
   }
 
-  // 결제 성공 시 추가 처리
-  async handlePaymentSuccess(paymentData, subscription) {
-    // 결제 정보 저장
-    const payment = await Payment.create({
-      amount: paymentData.amount,
-      currency: paymentData.currency,
-      payment_method: paymentData.method,
-      payment_status: 'completed',
-      payment_date: new Date(),
-      merchant_uid: paymentData.paymentKey,
-      pg_provider: 'toss',
-      receipt_url: paymentData.receipt?.url
-    });
-
-    // 구독 정보 업데이트
-    const subscriptionEndDate = new Date(subscription.end_date);
-    const newEndDate = new Date(subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1));
-    
-    await subscription.update({
-      end_date: newEndDate,
-      status: 'active'
-    });
-
-    return { payment, subscription };
-  }
-
-  // 결제 실패 시 추가 처리
-  async handlePaymentError(error) {
-    // 결제 실패 정보 저장
-    await Payment.create({
-      amount: error.response?.data?.amount || 0,
-      payment_status: 'failed',
-      payment_method: error.response?.data?.method || 'unknown',
-      merchant_uid: error.response?.data?.paymentKey,
-      pg_provider: 'toss'
-    });
-
-    console.error('Payment error:', error.response?.data || error);
-  }
-
   // 결제 성공 콜백 처리
   async handleSuccess(req, res) {
     try {
-      const { orderId, amount, paymentKey, subscriptionId } = req.query;
+      const { orderId, amount, paymentKey } = req.query;
       
-      const subscription = await Subscription.findByPk(subscriptionId);
-      if (!subscription) {
-        throw new Error('구독 정보를 찾을 수 없습니다.');
+      // 토스페이먼츠 API를 통해 결제 정보 조회
+      const encryptedSecretKey = Buffer.from(this.secretKey + ':').toString('base64');
+      const paymentDetails = await axios.get(
+        `https://api.tosspayments.com/v1/payments/${paymentKey}`,
+        {
+          headers: {
+            Authorization: `Basic ${encryptedSecretKey}`,
+          },
+        }
+      );
+
+      // metadata에서 구독 정보 추출
+      const { subscriptionPlanId, duration_months } = paymentDetails.data.metadata;
+      
+      if (!subscriptionPlanId) {
+        throw new Error('구독 플랜 정보를 찾을 수 없습니다.');
       }
 
+      // 결제 정보 생성
       const paymentData = {
-        orderId,
-        amount,
-        paymentKey,
-        status: 'SUCCESS'
+        merchant_uid: orderId,
+        amount: parseInt(amount),
+        payment_method: paymentDetails.data.method,
+        payment_status: 'completed',
+        payment_date: new Date(),
+        pg_provider: 'toss',
+        receipt_url: paymentDetails.data.receipt?.url,
       };
 
-      await this.handlePaymentSuccess(paymentData, subscription);
+      // 결제 정보 저장
+      const payment = await Payment.create(paymentData);
+
+      // 구독 정보 업데이트
+      const subscription = await Subscription.create({
+        status: 'active',
+        start_date: new Date(),
+        end_date: this.calculateEndDate(duration_months),
+        auto_renewal: true,
+        payment_id: payment.id,
+        subscription_plan_id: subscriptionPlanId
+      });
 
       res.status(200).json({ 
-        message: '결제가 성공적으로 완료되었습니다.',
-        data: paymentData 
+        message: '결제와 구독이 성공적으로 완료되었습니다.',
+        data: {
+          payment: paymentData,
+          subscription: subscription
+        }
       });
     } catch (error) {
       console.error('Success callback error:', error);
-      res.status(500).json({ message: '결제 완료 처리 중 오류가 발생했습니다.' });
+      res.status(500).json({ 
+        message: '결제 완료 처리 중 오류가 발생했습니다.',
+        error: error.message 
+      });
     }
+  }
+
+  // 구독 종료일 계산
+  calculateEndDate(durationMonths) {
+    const today = new Date();
+    return new Date(today.setMonth(today.getMonth() + parseInt(durationMonths)));
   }
 
   // 결제 실패 콜백 처리
   async handleFail(req, res) {
     try {
-      const { code, message, orderId, subscriptionId } = req.query;
+      const { code, message, orderId } = req.query;
 
-      const subscription = await Subscription.findByPk(subscriptionId);
-      if (subscription) {
-        await subscription.update({
-          status: 'expired'
-        });
-      }
-
+      // 실패 정보 저장
       const failData = {
-        orderId,
-        code,
-        message,
-        status: 'FAILED'
+        merchant_uid: orderId,
+        payment_status: 'failed',
+        pg_provider: 'toss',
+        fail_reason: `${code}: ${message}`
       };
 
-      await this.handlePaymentError({ 
-        response: { 
-          data: failData 
-        } 
-      });
+      await Payment.create(failData);
 
       res.status(200).json({ 
         message: '결제가 실패했습니다.',
