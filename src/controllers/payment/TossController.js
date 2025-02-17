@@ -11,9 +11,13 @@ class TossController {
     try {
       const { paymentKey, orderId, amount } = req.body;
       
+      console.log('[Toss Payment] Request body:', { paymentKey, orderId, amount });
+      
       // 토스페이먼츠 API 인증키 생성
       const encryptedSecretKey = Buffer.from(this.secretKey + ':').toString('base64');
+      console.log('[Toss Payment] Secret Key Generated');
 
+      console.log('[Toss Payment] Requesting payment confirmation to Toss API...');
       // 결제 승인 API 호출
       const response = await axios.post(
         'https://api.tosspayments.com/v1/payments/confirm',
@@ -30,11 +34,21 @@ class TossController {
         }
       );
 
+      console.log('[Toss Payment] Toss API Response:', response.data);
+
       // 결제 성공 처리
+      console.log('[Toss Payment] Processing payment success...');
       await this.handlePaymentSuccess(response.data);
       
+      console.log('[Toss Payment] Payment successfully completed');
       res.status(200).json(response.data);
     } catch (error) {
+      console.error('[Toss Payment] Error occurred:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+
       await this.handlePaymentError(error);
       
       res.status(error.response?.status || 500).json(error.response?.data || {
