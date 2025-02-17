@@ -39,6 +39,8 @@ const corsOptions = {
         'http://182.220.6.227:3000',
         'http://192.168.0.42:3000',
         'https://ads-web-seven.vercel.app',
+        'https://2576-182-220-6-227.ngrok-free.app', // 현재 ngrok URL 추가
+        /^https:\/\/[a-zA-Z0-9-]+\.ngrok-free\.app$/ // ngrok URL 패턴 매칭
       ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
