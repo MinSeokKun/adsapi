@@ -24,6 +24,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/subscription-plan/{planId}:
+    get:
+      tags:
+        - subscription
+      summary: 특정 구독 플랜 조회
+      description: ID로 구독 플랜을 조회합니다.
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: integer
+          description: 구독 플랜 ID
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionPlan'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 구독 플랜을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/admin/subscription-plans:
     post:
       tags:

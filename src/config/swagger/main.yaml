@@ -74,6 +74,8 @@ paths:
   # subscription.yaml 파일의 경로들을 포함
   /api/subscription-plans:
     $ref: './subscription.yaml#/paths/~1api~1subscription-plans'
+  /api/subscription-plan/{planId}:
+    $ref: './subscription.yaml#/paths/~1api~1subscription-plan~1{planId}'
   /api/admin/subscription-plans:
     $ref: './subscription.yaml#/paths/~1api~1admin~1subscription-plans'
   /api/admin/subscription-plans/{planId}:
