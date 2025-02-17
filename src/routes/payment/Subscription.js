@@ -60,6 +60,53 @@ router.get('/api/subscription-plans', async (req, res) => {
   }
 });
 
+// ID로 구독 플랜 조회
+router.get('/api/subscription-plan/:planId', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    userId: req.user?.id,
+    path: req.path,
+    planId: req.params.planId,
+  };
+  try {
+    const planId = req.params.planId;
+
+    if (!planId || isNaN(planId)) {
+      logger.warn('잘못된 구독 플랜 ID', sanitizeData(logContext));
+      return res.status(400).json({ error: "잘못된 구독 플랜 ID입니다." });
+    }
+
+    const plan = await SubscriptionPlan.findOne({
+      attributes: ['id', 'name', 'price', 'duration_months', 'features'],
+      where: { is_active: true, id: planId }
+    });
+
+    if (!plan) {
+      logger.warn('존재하지 않는 구독 플랜 조회', sanitizeData(logContext));
+      return res.status(404).json({ error: "구독 플랜을 찾을 수 없습니다."});
+    }
+
+    logger.info('구독 플랜 조회 완료', sanitizeData(logContext));
+
+    res.json(plan);
+  } catch (error) {
+    logger.error('플랜 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+
+    res.status(500).json({
+      error: '서버 오류가 발생했습니다',
+      message: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
+  }
+});
+
 // 슈퍼 관리자 구독 플랜 등록
 router.post('/api/admin/subscription-plans', 
   verifyToken, 
