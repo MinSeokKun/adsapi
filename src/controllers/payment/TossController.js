@@ -14,9 +14,7 @@ class TossController {
       console.log('[Toss Payment] Request body:', { paymentKey, orderId, amount });
       
       const encryptedSecretKey = Buffer.from(this.secretKey + ':').toString('base64');
-      console.log('[Toss Payment] Secret Key Generated');
-
-      console.log('[Toss Payment] Requesting payment confirmation to Toss API...');
+      
       // 결제 승인 API 호출
       const response = await axios.post(
         'https://api.tosspayments.com/v1/payments/confirm',
@@ -34,47 +32,47 @@ class TossController {
       );
 
       console.log('[Toss Payment] Toss API Response:', response.data);
-
-      // 결제 성공 처리
-      console.log('[Toss Payment] Processing payment success...');
       
-      // metadata에서 구독 정보 추출
-      const { subscriptionPlanId, duration_months } = response.data.metadata || {};
-      
-      if (!subscriptionPlanId) {
-        throw new Error('구독 플랜 정보를 찾을 수 없습니다.');
-      }
-
       // 결제 정보 생성
       const paymentData = {
         merchant_uid: orderId,
         amount: parseInt(amount),
-        payment_method: response.data.method,
+        payment_method: response.data.method || 'card',  // 기본값 설정
         payment_status: 'completed',
         payment_date: new Date(),
         pg_provider: 'toss',
-        receipt_url: response.data.receipt?.url,
+        receipt_url: response.data.receipt?.url
       };
+
+      console.log('[Toss Payment] Creating payment record:', paymentData);
 
       // 결제 정보 저장
       const payment = await Payment.create(paymentData);
+      
+      // metadata에서 구독 정보 추출
+      const duration_months = response.data.metadata?.duration_months || 1;
+      const subscriptionPlanId = response.data.metadata?.subscriptionPlanId;
 
-      // 구독 정보 업데이트
-      const subscription = await Subscription.create({
-        status: 'active',
-        start_date: new Date(),
-        end_date: this.calculateEndDate(duration_months),
-        auto_renewal: true,
-        payment_id: payment.id,
-        subscription_plan_id: subscriptionPlanId
-      });
+      if (subscriptionPlanId) {
+        // 구독 정보 업데이트
+        const subscription = await Subscription.create({
+          status: 'active',
+          start_date: new Date(),
+          end_date: this.calculateEndDate(duration_months),
+          auto_renewal: true,
+          payment_id: payment.id,
+          subscription_plan_id: subscriptionPlanId
+        });
 
-      console.log('[Toss Payment] Payment successfully completed');
+        console.log('[Toss Payment] Subscription created:', subscription);
+      }
+
       res.status(200).json({
-        message: '결제와 구독이 성공적으로 완료되었습니다.',
+        message: '결제가 성공적으로 완료되었습니다.',
         data: {
-          payment: paymentData,
-          subscription: subscription
+          payment: payment,
+          orderId: orderId,
+          amount: amount
         }
       });
       
@@ -86,14 +84,16 @@ class TossController {
       });
 
       // 실패 정보 저장
-      const failData = {
-        merchant_uid: req.body.orderId,
-        payment_status: 'failed',
-        pg_provider: 'toss',
-        fail_reason: error.response?.data?.message || error.message
-      };
-
       try {
+        const failData = {
+          merchant_uid: req.body.orderId,
+          amount: parseInt(req.body.amount),
+          payment_method: 'card',
+          payment_status: 'failed',
+          pg_provider: 'toss',
+          fail_reason: error.response?.data?.message || error.message
+        };
+
         await Payment.create(failData);
       } catch (dbError) {
         console.error('Failed to save payment failure:', dbError);
