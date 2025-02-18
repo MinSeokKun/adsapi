@@ -4,10 +4,9 @@ const sequelize = require('../../config/database');
 const { Ad, AdMedia, AdSchedule } = require('../../models');
 const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const { sponsorAdUpload, handleUploadError } = require('../../middleware/uploadMiddleware');
-const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse, parseSchedules } = require('../../utils/adUtils');
-const { storage } = require('../../config/storage')
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
+const adService = require('../../services/adService');
 
 // 광고 조회
 router.get('/api/ads', 
@@ -21,30 +20,8 @@ router.get('/api/ads',
     };
   
     try {
-      logger.info('광고 조회 시작', sanitizeData(logContext));
       const { time } = req.query;
-  
-      const queryOptions = {
-        include: [{
-          model: AdMedia,
-          as: 'media',
-          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-        }, {
-          model: AdSchedule,
-          required: false,
-          attributes: ['time']
-        }],
-        where: {
-          is_active: true
-        },
-      };
-  
-      if (time) {
-        queryOptions.include[1].where = { time: time + ':00:00' };
-        queryOptions.include[1].required = true;
-      }
-  
-      const ads = await Ad.findAll(queryOptions);
+      const ads = await adService.getAdsByTime(time);
   
       logger.info('광고 조회 완료', sanitizeData({
         ...logContext,
@@ -52,23 +29,7 @@ router.get('/api/ads',
         hasTimeFilter: !!time
       }));
   
-      res.json({ 
-        ads: ads.map(ad => ({
-          id: ad.id,
-          title: ad.title,
-          type: ad.type,
-          media: ad.media.map(media => ({
-            url: media.url,
-            type: media.type,
-            duration: media.duration,
-            size: media.size,
-            is_primary: media.is_primary
-          })),
-          schedules: ad.AdSchedules ? 
-            ad.AdSchedules.map(schedule => parseInt(schedule.time.split(':')[0])).sort((a, b) => a - b) 
-            : null
-        }))
-      });
+      res.json({ ads });
   
     } catch (error) {
       logger.error('광고 조회 실패', sanitizeData({
@@ -96,41 +57,15 @@ router.get('/api/ads/list',
       userId: req.user?.id,
       path: req.path
     };
-  
     try {
-      logger.info('광고 목록 조회 시작', sanitizeData(logContext));
-  
-      const ads = await Ad.findAll({
-        include: [{
-          model: AdMedia,
-          as: 'media',
-          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-        }],
-        where: {
-          is_active: true
-        }
-      });
+      const ads = await adService.getAllActiveAds();
   
       logger.info('광고 목록 조회 완료', sanitizeData({
         ...logContext,
         adCount: ads.length
       }));
   
-      res.json({ 
-        ads: ads.map(ad => ({
-          id: ad.id,
-          title: ad.title,
-          type: ad.type,
-          media: ad.media.map(media => ({
-            url: media.url,
-            type: media.type,
-            duration: media.duration,
-            size: media.size,
-            is_primary: media.is_primary
-          }))
-        }))
-      });
-  
+      res.json({ ads });
     } catch (error) {
       logger.error('광고 목록 조회 실패', sanitizeData({
         ...logContext,
@@ -152,56 +87,38 @@ router.post('/api/ads',
   sponsorAdUpload,
   handleUploadError,
   async (req, res) => {
-    let transaction;
-  const logContext = {
-    requestId: req.id,
-    userId: req.user?.id,
-    path: req.path,
-    requestData: sanitizeData(req.body),
-    fileInfo: req.files ? {
-      count: req.files.length,
-      totalSize: req.files.reduce((acc, file) => acc + file.size, 0)
-    } : null
-  };
+
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      adId: req.params.id,
+      path: req.path,
+      requestData: sanitizeData(req.body),
+      fileInfo: req.files ? {
+        count: Object.values(req.files).reduce((acc, files) => acc + files.length, 0),
+        totalSize: Object.values(req.files).reduce((acc, files) => 
+          acc + files.reduce((sum, file) => sum + file.size, 0), 0)
+      } : null
+    };
 
   try {
-    logger.info('광고 등록 시작', sanitizeData(logContext));
-    
-    transaction = await sequelize.transaction();
     const { title, schedules } = req.body;
+    const ad = await adService.createAd(title, schedules, req.files);
 
-    logger.info('광고 미디어 처리 시작', sanitizeData({
-      ...logContext,
-      mediaCount: req.files?.length || 0
-    }));
-
-    const ad = await Ad.create({
-      title,
-      is_active: true,
-      type: 'sponsor'
-    }, { transaction });
-
-    await processSponsorAdMedia(req.files, ad.id, transaction);
-    const parsedSchedules = await updateAdSchedules(ad.id, schedules, transaction);
-
-    await transaction.commit();
-    const createdAd = await getAdDetails(ad.id);
 
     logger.info('광고 등록 완료', sanitizeData({
       ...logContext,
       adId: ad.id,
-      mediaCount: req.files?.length || 0,
-      scheduleCount: parsedSchedules?.length || 0
+      mediaCount: ad.media?.length || 0,
+      scheduleCount: schedules.length || 0
     }));
     
     res.status(201).json({ 
       message: '광고가 성공적으로 저장되었습니다',
-      ad: formatAdResponse({ ...createdAd.toJSON(), schedules: parsedSchedules })
+      ad: ad
     });
 
   } catch (error) {
-    if (transaction) await transaction.rollback();
-    
     logger.error('광고 등록 실패', sanitizeData({
       ...logContext,
       error: {
@@ -226,7 +143,6 @@ router.put('/api/ads/:id',
   handleUploadError,
   async (req, res) => {
 
-  let transaction;
   const logContext = {
     requestId: req.id,
     userId: req.user?.id,
@@ -241,72 +157,22 @@ router.put('/api/ads/:id',
   };
 
   try {
-    logger.info('광고 수정 시작', sanitizeData(logContext));
-    
-    transaction = await sequelize.transaction();
     const { id } = req.params;
-    const { title, is_active, schedules } = req.body;
+      const { title, is_active, schedules } = req.body;
+      
+      const updatedAd = await adService.updateAd(id, {
+        title,
+        is_active,
+        schedules,
+        files: req.files
+      }, logContext);  // logContext를 추가로 전달
 
-    const ad = await Ad.findByPk(id);
-    if (!ad) {
-      logger.warn('존재하지 않는 광고 수정 시도', sanitizeData(logContext));
-      return res.status(404).json({ error: '광고를 찾을 수 없습니다' });
-    }
-
-    logger.info('광고 기본 정보 수정', sanitizeData({
-      ...logContext,
-      updateFields: { title, is_active }
-    }));
-
-    await ad.update({ title, is_active }, { transaction });
-
-    if (req.files && (req.files.maxFiles || req.files.minFiles)) {
-      logger.info('광고 미디어 수정 시작', sanitizeData({
-        ...logContext,
-        mediaFiles: {
-          maxFiles: req.files.maxFiles?.length || 0,
-          minFiles: req.files.minFiles?.length || 0
-        }
-      }));
-
-      await updateAdMedia({
-        adId: id,
-        files: req.files,
-        transaction,
-        type: 'sponsor'
+      res.json({ 
+        message: '광고가 성공적으로 수정되었습니다',
+        ad: updatedAd
       });
-    }
-
-    let parsedSchedules = [];
-    if (schedules) {
-      logger.info('광고 스케줄 수정 시작', sanitizeData({
-        ...logContext,
-        scheduleCount: schedules.length
-      }));
-      parsedSchedules = await updateAdSchedules(id, schedules, transaction);
-    }
-
-    await transaction.commit();
-    const updatedAd = await getAdDetails(id);
-
-    logger.info('광고 수정 완료', sanitizeData({
-      ...logContext,
-      mediaUpdated: !!req.files,
-      scheduleUpdated: !!schedules,
-      scheduleCount: parsedSchedules.length
-    }));
-    
-    res.json({ 
-      message: '광고가 성공적으로 수정되었습니다',
-      ad: formatAdResponse({
-        ...updatedAd.toJSON(),
-        schedules: parsedSchedules
-      })
-    });
 
   } catch (error) {
-    if (transaction) await transaction.rollback();
-    
     logger.error('광고 수정 실패', sanitizeData({
       ...logContext,
       error: {
@@ -329,7 +195,6 @@ router.delete('/api/ads/:id',
   verifyToken, 
   isAdmin, 
   async (req, res) => {
-    let transaction;
   const logContext = {
     requestId: req.id,
     userId: req.user?.id,
@@ -338,50 +203,15 @@ router.delete('/api/ads/:id',
   };
 
   try {
-    logger.info('광고 삭제 시작', sanitizeData(logContext));
-    
-    transaction = await sequelize.transaction();
     const { id } = req.params;
 
-    const ad = await Ad.findByPk(id, {
-      include: [{
-        model: AdMedia,
-        as: 'media',
-        attributes: ['url']
-      }]
-    });
+    await adService.deleteAd(id, logContext);
 
-    if (!ad) {
-      logger.warn('존재하지 않는 광고 삭제 시도', sanitizeData(logContext));
-      return res.status(404).json({ error: '광고를 찾을 수 없습니다' });
-    }
-
-    logger.info('광고 관련 데이터 삭제 시작', sanitizeData({
-      ...logContext,
-      mediaCount: ad.media.length
-    }));
-
-    await Promise.all([
-      AdMedia.destroy({ where: { ad_id: id }, transaction }),
-      AdSchedule.destroy({ where: { ad_id: id }, transaction }),
-      ad.destroy({ transaction })
-    ]);
-
-    for (const media of ad.media) {
-      await storage.deleteFile(media.url);
-    }
-
-    await transaction.commit();
-
-    logger.info('광고 삭제 완료', sanitizeData({
-      ...logContext,
-      deletedMedia: ad.media.length
-    }));
+    logger.info('광고 삭제 완료', sanitizeData(logContext));
 
     res.json({ message: '광고가 성공적으로 삭제되었습니다' });
 
   } catch (error) {
-    if (transaction) await transaction.rollback();
     
     logger.error('광고 삭제 실패', sanitizeData({
       ...logContext,
@@ -404,7 +234,6 @@ router.post('/api/ads/schedule',
   // verifyToken, 
   // isAdmin, 
   async (req, res) => {
-    let transaction;
     const logContext = {
       requestId: req.id,
       userId: req.user?.id,
@@ -413,87 +242,15 @@ router.post('/api/ads/schedule',
     };
   
     try {
-      logger.info('광고 스케줄 저장 시작', sanitizeData(logContext));
-      
       const scheduleData = req.body;
-      if (!Array.isArray(scheduleData)) {
-        logger.warn('잘못된 스케줄 데이터 형식', sanitizeData({
-          ...logContext,
-          dataType: typeof scheduleData
-        }));
-        return res.status(400).json({ error: '올바른 형식의 데이터가 아닙니다' });
-      }
-  
-      transaction = await sequelize.transaction();
-      const adIds = scheduleData.map(item => item.ad_id);
-  
-      logger.info('광고 스케줄 처리 중', sanitizeData({
-        ...logContext,
-        adCount: adIds.length,
-        scheduleCount: scheduleData.reduce((acc, item) => acc + item.time.length, 0)
-      }));
-  
-      const schedulePromises = scheduleData.flatMap(item => {
-        const { ad_id, time } = item;
-        return [
-          AdSchedule.destroy({ where: { ad_id }, transaction }),
-          ...time.map(hour => 
-            AdSchedule.create({
-              ad_id,
-              time: `${hour}:00:00`
-            }, { transaction })
-          )
-        ];
-      });
-  
-      await Promise.all(schedulePromises);
-      await transaction.commit();
-  
-      const updatedAds = await Ad.findAll({
-        where: { id: adIds },
-        include: [
-          {
-            model: AdMedia,
-            as: 'media',
-            attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-          },
-          {
-            model: AdSchedule,
-            required: false,
-            attributes: ['time']
-          }
-        ]
-      });
-  
-      const formattedAds = updatedAds.map(ad => ({
-        id: ad.id,
-        title: ad.title,
-        media: ad.media.map(m => ({
-          url: m.url,
-          type: m.type,
-          duration: m.duration,
-          size: m.size,
-          is_primary: m.is_primary
-        })),
-        schedules: ad.AdSchedules.map(schedule => 
-          parseInt(schedule.time.split(':')[0])
-        ).sort((a, b) => a - b)
-      }));
-  
-      logger.info('광고 스케줄 저장 완료', sanitizeData({
-        ...logContext,
-        adCount: adIds.length,
-        totalSchedules: formattedAds.reduce((acc, ad) => acc + ad.schedules.length, 0)
-      }));
+      const updatedAds = await adService.updateSchedules(scheduleData);
       
       res.status(200).json({ 
         message: '광고 스케줄이 성공적으로 저장되었습니다',
-        ads: formattedAds
+        ads: updatedAds
       });
   
     } catch (error) {
-      if (transaction) await transaction.rollback();
-      
       logger.error('광고 스케줄 저장 실패', sanitizeData({
         ...logContext,
         error: {
