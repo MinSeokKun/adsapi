@@ -121,19 +121,28 @@ async function processSalonAdMedia(files, adId, salonId, transaction) {
  * 광고 정보 포맷팅
  */
 function formatAdResponse(ad) {
+  if (!ad) return null;
+
+  const adData = ad.dataValues || ad;
+  const mediaArray = adData.media ? (Array.isArray(adData.media) ? adData.media : [adData.media]) : [];
+  
   return {
-    id: ad.id,
-    title: ad.title,
-    type: ad.type,
-    salon_id: ad.salon_id,
-    media: ad.media.map(m => ({
-      url: m.url,
-      type: m.type,
-      duration: m.duration,
-      size: m.size,
-      is_primary: m.is_primary
+    id: adData.id,
+    title: adData.title,
+    type: adData.type,
+    salon_id: adData.salon_id,
+    media: mediaArray.map(m => ({
+      url: m.dataValues.url,
+      type: m.dataValues.type,
+      duration: m.dataValues.duration,
+      size: m.dataValues.size,
+      is_primary: m.dataValues.is_primary
     })),
-    ...(ad.schedules && { schedules: ad.schedules })
+    schedules: adData.AdSchedules ? 
+      adData.AdSchedules.map(schedule => 
+        parseInt(schedule.dataValues.time.split(':')[0])
+      ).sort((a, b) => a - b) 
+      : []
   };
 }
 
@@ -142,12 +151,8 @@ function formatAdResponse(ad) {
  */
 async function updateAdSchedules(adId, schedules, transaction) {
   // 기존 스케줄 비활성화
-  await AdSchedule.update(
-    { is_active: false },
-    { 
-      where: { ad_id: adId },
-      transaction 
-    }
+  await AdSchedule.destroy(
+    {where: { ad_id: adId }, transaction }
   );
 
   // 새로운 스케줄 생성
@@ -234,7 +239,11 @@ async function getAdDetails(adId) {
       model: AdMedia,
       as: 'media',
       attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-    }]
+    }, {
+      model: AdSchedule,
+      required: false,
+      attributes: ['time']
+    }],
   });
 }
 
