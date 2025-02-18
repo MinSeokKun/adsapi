@@ -32,11 +32,14 @@ class TossController {
         }
       );
 
-      console.log('[Toss Payment] Toss API Response:', response.data);
+      const userId = response.data.metadata?.userId;
+      const subscriptionPlanId = response.data.metadata?.subscriptionPlanId;
+
+      // console.log('[Toss Payment] Toss API Response:', response.data);
 
       const subscriptionData = {
-        user_id: req.user.id,
-        plan_id: req.metadata.subscriptionPlanId,
+        user_id: userId,
+        plan_id: subscriptionPlanId,
         status: 'active',
         start_date: new Date(),
         end_date: this.calculateEndDate(response.data.metadata?.duration_months || 1),
@@ -55,7 +58,7 @@ class TossController {
         pg_provider: 'toss',
         receipt_url: response.data.receipt?.url,
         subscription_id: subscription.id,
-        user_id: req.user.id
+        user_id: userId
       };
 
       console.log('[Toss Payment] Creating payment record:', paymentData);
