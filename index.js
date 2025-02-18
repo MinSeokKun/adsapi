@@ -30,8 +30,7 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
     ? [
         process.env.FRONTEND_URL,
-        'https://ads-web-seven.vercel.app',
-        'https://f70b-182-220-6-227.ngrok-free.app'
+        'https://ads-web-seven.vercel.app'
       ]
     : [
         'http://localhost:3000',
@@ -39,7 +38,7 @@ const corsOptions = {
         'http://182.220.6.227:3000',
         'http://192.168.0.42:3000',
         'https://ads-web-seven.vercel.app',
-        'https://2576-182-220-6-227.ngrok-free.app', // 현재 ngrok URL 추가
+        'https://2576-182-220-6-227.ngrok-free.app',
         /^https:\/\/[a-zA-Z0-9-]+\.ngrok-free\.app$/ // ngrok URL 패턴 매칭
       ],
   credentials: true,

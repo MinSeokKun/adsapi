@@ -81,24 +81,9 @@ class TossController {
         data: error.response?.data,
         message: error.message
       });
+
       if (transaction) await transaction.rollback();
-      // 실패 정보 저장
-      try {
-        const failData = {
-          user_id: req.user.id,
-          merchant_uid: req.body.orderId,
-          amount: parseInt(req.body.amount),
-          payment_method: 'card',
-          payment_status: 'failed',
-          pg_provider: 'toss',
-          fail_reason: error.response?.data?.message || error.message
-        };
-
-        await Payment.create(failData);
-      } catch (dbError) {
-        console.error('Failed to save payment failure:', dbError);
-      }
-
+      
       res.status(error.response?.status || 500).json({
         message: '결제가 실패했습니다.',
         error: error.response?.data || { message: '결제 처리 중 오류가 발생했습니다.' }
