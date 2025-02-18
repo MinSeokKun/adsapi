@@ -32,20 +32,7 @@ class AdService {
     }
 
     const ads = await Ad.findAll(queryOptions);
-    return ads.map(ad => ({
-      id: ad.id,
-      title: ad.title,
-      media: ad.media.map(media => ({
-        url: media.url,
-        type: media.type,
-        duration: media.duration,
-        size: media.size,
-        is_primary: media.is_primary
-      })),
-      schedules: ad.AdSchedules ? 
-        ad.AdSchedules.map(schedule => parseInt(schedule.time.split(':')[0])).sort((a, b) => a - b) 
-        : null
-    }));
+    return ads.map(ad => formatAdResponse(ad));
   }
 
   /**
@@ -63,26 +50,17 @@ class AdService {
       }
     });
 
-    return ads.map(ad => ({
-      id: ad.id,
-      title: ad.title,
-      media: ad.media.map(media => ({
-        url: media.url,
-        type: media.type,
-        duration: media.duration,
-        size: media.size,
-        is_primary: media.is_primary
-      }))
-    }));
+    return ads.map(ad => formatAdResponse(ad));
   }
 
   /**
    * 새로운 광고 등록
    */
   async createAd(title, schedules, files) {
-    const transaction = await sequelize.transaction();
+    let transaction;
 
     try {
+      transaction = await sequelize.transaction();
       const ad = await Ad.create({
         title,
         is_active: true,
@@ -103,7 +81,7 @@ class AdService {
         }]
       });
 
-      return formatAdResponse({ ...createdAd.toJSON(), schedules: parsedSchedules });
+      return formatAdResponse(createdAd);
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -114,9 +92,10 @@ class AdService {
    * 광고 수정
    */
   async updateAd(id, { title, is_active, schedules, files }, logContext = {}) {
-    const transaction = await sequelize.transaction();
+    let transaction;
 
     try {
+      transaction = await sequelize.transaction();
       const ad = await Ad.findByPk(id);
       if (!ad) {
         logger.warn('존재하지 않는 광고 수정 시도', sanitizeData(logContext));
@@ -143,12 +122,11 @@ class AdService {
       await transaction.commit();
 
       const updatedAd = await getAdDetails(id);
-      return formatAdResponse({
-        ...updatedAd.toJSON(),
-        schedules: parsedSchedules
-      });
+      return formatAdResponse(updatedAd);
     } catch (error) {
-      await transaction.rollback();
+      if (transaction) {
+        await transaction.rollback();
+      }
       throw error;
     }
   }
@@ -158,9 +136,10 @@ class AdService {
    * 광고 삭제
    */
   async deleteAd(id, logContext) {
-    const transaction = await sequelize.transaction();
+    let transaction;
     
     try {
+      transaction = await sequelize.transaction();
       const ad = await Ad.findByPk(id, {
         include: [{
           model: AdMedia,
@@ -189,7 +168,9 @@ class AdService {
       await transaction.commit();
       return true;
     } catch (error) {
-      await transaction.rollback();
+      if (transaction) {
+        await transaction.rollback();
+      }
       throw error;
     }
   }
@@ -203,8 +184,9 @@ class AdService {
       throw new Error('올바른 형식의 데이터가 아닙니다');
     }
 
-    const transaction = await sequelize.transaction();
+    let transaction;
     try {
+      transaction = await sequelize.transaction();
       const adIds = scheduleData.map(item => item.ad_id);
 
       const schedulePromises = scheduleData.flatMap(item => {
@@ -263,7 +245,9 @@ class AdService {
 
       return formattedAds;
     } catch (error) {
-      await transaction.rollback();
+      if (transaction) {
+        await transaction.rollback();
+      }
       throw error;
     }
   }
