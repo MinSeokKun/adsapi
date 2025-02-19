@@ -45,7 +45,7 @@ router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) =
       
       // 최근 등록된 미용실 (최근 10개)
       Salon.findAll({
-        attributes: ['id', 'name', 'address', 'createdAt'],
+        attributes: ['id', 'name', 'createdAt'],
         include: [{
           model: User,
           attributes: ['name'],
