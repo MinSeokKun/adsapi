@@ -80,7 +80,6 @@ router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) =
       recentSalons: recentSalons.map(salon => ({
         id: salon.id,
         name: salon.name,
-        address: salon.address,
         ownerName: salon.owner?.name,
         createdAt: salon.createdAt
       }))

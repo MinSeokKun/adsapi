@@ -8,6 +8,8 @@ const PaymentRefund = require('./pay/PaymentRefund');
 const Subscription = require('./pay/Subscription');
 const SubscriptionPlan = require('./pay/SubscriptionPlan');
 const Payment = require('./pay/payment');
+const Location = require('./auth/location');
+const AdLocation = require('./ad/adLocation');
 
 // 광고 관련 관계 설정
 Ad.hasMany(AdSchedule, {
@@ -24,7 +26,15 @@ Ad.hasMany(AdMedia, {
 AdMedia.belongsTo(Ad, {
   foreignKey: 'ad_id'
 });
-
+// 광고 위치 관계 설정
+Ad.hasMany(AdLocation, {
+  foreignKey: 'ad_id',
+  as: 'targetLocations'
+});
+AdLocation.belongsTo(Ad, {
+  foreignKey: 'ad_id'
+});
+  
 // 살롱 관련 관계 설정
 User.hasMany(Salon, {
   foreignKey: 'owner_id',
@@ -33,6 +43,18 @@ User.hasMany(Salon, {
 Salon.belongsTo(User, {
   foreignKey: 'owner_id',
   as: 'owner'
+});
+
+Salon.hasOne(Location, {
+  foreignKey: {
+      name: 'salon_id',
+      allowNull: false
+  },
+  as: 'location'
+});
+Location.belongsTo(Salon, {
+  foreignKey: 'salon_id',
+  as: 'salon'
 });
 
 Salon.hasMany(Ad, {

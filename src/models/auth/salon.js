@@ -6,17 +6,18 @@ const Salon = sequelize.define('Salon', {
         type: DataTypes.STRING(100),
         allowNull: false
     },
-    address: {
-        type: DataTypes.STRING(255),
-        allowNull: false
-    },
-    region_code: {
-        type: DataTypes.STRING(10),
-        allowNull: false
-    },
     business_hours: {
         type: DataTypes.STRING(100),
         allowNull: false
+    },
+    business_number: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        unique: true,
+        validate: {
+            is: /^[0-9]{10}$/,  // 10자리 숫자만 허용
+        },
+        comment: '사업자등록번호 (10자리)'
     },
     created_at: {
         type: DataTypes.DATE,

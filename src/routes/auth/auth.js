@@ -19,7 +19,6 @@ router.get('/auth/google',
       state: req.query.state
     };
     
-    logger.info('OAuth 인증 시도', sanitizeData(logContext));
     next();
   },
   (req, res, next) => {
@@ -53,8 +52,6 @@ router.get('/auth/google/callback',
     } catch (e) {
       logger.error('State 파싱 실패', { error: e });
     }
-
-    logger.info('OAuth 콜백 처리 시작 - 세션 데이터 확인', sanitizeData(logContext));
 
     try {
 
@@ -116,7 +113,6 @@ router.get('/auth/kakao',
       path: req.path
     };
     
-    logger.info('OAuth 인증 시도', sanitizeData(logContext));
     next();
   },
   passport.authenticate('kakao', {
@@ -136,7 +132,6 @@ router.get('/auth/kakao/callback',
     };
 
     try {
-      logger.info('OAuth 콜백 처리 시작', sanitizeData(logContext));
 
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
@@ -207,8 +202,6 @@ router.get('/auth/logout', (req, res) => {
     path: req.path
   };
 
-  logger.info('로그아웃 시도', sanitizeData(logContext));
-
   req.logout((error) => {
     if (error) {
       logger.error('로그아웃 처리 실패', sanitizeData({
@@ -272,8 +265,6 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
     const { userId } = req.params;
     const { role } = req.body;
 
-    logger.info('사용자 권한 업데이트 시도', sanitizeData(logContext));
-    
     if (!['user', 'admin', 'superadmin'].includes(role)) {
       logger.warn('잘못된 권한 요청', sanitizeData({
         ...logContext,
