@@ -1,11 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const sequelize = require('../../config/database');
-const { Ad, AdMedia, Salon, AdSchedule } = require('../../models');
 const { verifyToken } = require('../../middleware/auth');
-const { salonAdUpload, handleUploadError } = require('../../middleware/uploadMiddleware');
-const { processSalonAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse, parseSchedules } = require('../../utils/adUtils');
-const storage = require('../../config/storage');
+const { formatAdResponse } = require('../../utils/adUtils');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const salonAdService = require('../../services/salonAdService');
@@ -50,8 +46,6 @@ router.get('/api/ads/salon', verifyToken, async (req, res) => {
 // 미용실 개인 광고 등록
 router.post('/api/ads/salon',
   verifyToken,
-  salonAdUpload,
-  handleUploadError,
   async (req, res) => {
     const owner_id = req.user.id;
 
@@ -68,10 +62,7 @@ router.post('/api/ads/salon',
     };
 
     try {
-      logger.info('미용실 광고 등록 시작', sanitizeData(logContext));
-
       const { title, salon_id, schedules } = req.body;
-
       const createdAd = await salonAdService.createSalonAd(title, salon_id, schedules, req.files, owner_id, logContext);
 
       logger.info('미용실 광고 등록 완료', sanitizeData({
@@ -105,8 +96,6 @@ router.post('/api/ads/salon',
 // 미용실 개인 광고 수정
 router.put('/api/ads/salon/:id',
   verifyToken,
-  salonAdUpload,
-  handleUploadError,
   async (req, res) => {
     const { id } = req.params;
     const { title, is_active, schedules } = req.body;
@@ -170,11 +159,8 @@ router.delete('/api/ads/salon/:id', verifyToken, async (req, res) => {
   };
   try {
     await salonAdService.deleteSalonAd(id, owner_id, logContext);
-
     logger.info('미용실 광고 삭제 완료', sanitizeData(logContext));
-
     res.json({ message: '광고가 성공적으로 삭제되었습니다' });
-
   } catch (error) {
     logger.error('미용실 광고 삭제 실패', sanitizeData({
       ...logContext,

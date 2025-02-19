@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const sequelize = require('../../config/database');
-const { Ad, AdMedia, AdSchedule } = require('../../models');
 const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const { sponsorAdUpload, handleUploadError } = require('../../middleware/uploadMiddleware');
 const logger = require('../../config/winston');
