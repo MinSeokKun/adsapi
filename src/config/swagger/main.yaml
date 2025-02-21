@@ -102,6 +102,10 @@ components:
     # salon.yaml의 스키마들을 포함
     Salon:
       $ref: './salon.yaml#/components/schemas/Salon'
+    Location:
+      $ref: './salon.yaml#/components/schemas/Location'
+    SalonWithLocation:
+      $ref: './salon.yaml#/components/schemas/SalonWithLocation'
 
     # subscription.yaml의 스키마들을 포함
     SubscriptionPlan:
