@@ -18,7 +18,7 @@ paths:
                   salons:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Salon'
+                      $ref: '#/components/schemas/SalonWithLocation'
         '401':
           description: 인증 실패
         '500':
@@ -28,7 +28,7 @@ paths:
       tags:
         - salons
       summary: 미용실 등록
-      description: 새로운 미용실을 등록합니다
+      description: 새로운 미용실을 등록합니다. 기본 주소는 자동으로 좌표와 행정구역 정보로 변환됩니다.
       security:
         - BearerAuth: []
       requestBody:
@@ -38,26 +38,37 @@ paths:
             schema:
               type: object
               required:
-                - name
+                - salon
                 - address
-                - region_code
               properties:
-                name:
-                  type: string
-                  description: 미용실 이름
-                  maxLength: 100
+                salon:
+                  type: object
+                  required:
+                    - name
+                    - business_hours
+                    - business_number
+                  properties:
+                    name:
+                      type: string
+                      description: 미용실 이름
+                      maxLength: 100
+                    business_hours:
+                      type: string
+                      description: 영업 시간
+                      maxLength: 100
+                    business_number:
+                      type: string
+                      description: 사업자등록번호
+                      pattern: '^[0-9]{10}$'
                 address:
                   type: string
-                  description: 미용실 주소
+                  description: 기본 주소 (도로명 주소 또는 지번 주소)
+                  example: "대구광역시 수성구 범어동 774"
+                addressDetail:
+                  type: string
+                  description: 상세 주소 (건물명, 동/호수 등)
                   maxLength: 255
-                region_code:
-                  type: string
-                  description: 지역 코드
-                  maxLength: 10
-                business_hours:
-                  type: string
-                  description: 영업 시간
-                  maxLength: 100
+                  example: "7번지 2층 201호"
       responses:
         '201':
           description: 미용실이 성공적으로 등록됨
@@ -68,8 +79,19 @@ paths:
                 properties:
                   message:
                     type: string
+                    example: "미용실이 등록되었습니다."
                   salon:
-                    $ref: '#/components/schemas/Salon'
+                    $ref: '#/components/schemas/SalonWithLocation'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "주소를 확인해주세요."
         '401':
           description: 인증 실패
         '500':
@@ -99,7 +121,7 @@ paths:
                 type: object
                 properties:
                   salon:
-                    $ref: '#/components/schemas/Salon'
+                    $ref: '#/components/schemas/SalonWithLocation'
         '401':
           description: 인증 실패
         '404':
@@ -128,22 +150,52 @@ paths:
             schema:
               type: object
               properties:
-                name:
-                  type: string
-                  description: 미용실 이름
-                  maxLength: 100
-                address:
-                  type: string
-                  description: 미용실 주소
-                  maxLength: 255
-                region_code:
-                  type: string
-                  description: 지역 코드
-                  maxLength: 10
-                business_hours:
-                  type: string
-                  description: 영업 시간
-                  maxLength: 100
+                salon:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: 미용실 이름
+                      maxLength: 100
+                    business_hours:
+                      type: string
+                      description: 영업 시간
+                      maxLength: 100
+                    business_number:
+                      type: string
+                      description: 사업자등록번호
+                      pattern: '^[0-9]{10}$'
+                location:
+                  type: object
+                  properties:
+                    address_line1:
+                      type: string
+                      description: 기본 주소
+                      maxLength: 255
+                    address_line2:
+                      type: string
+                      description: 상세 주소
+                      maxLength: 255
+                    city:
+                      type: string
+                      description: 시/도
+                      maxLength: 100
+                    district:
+                      type: string
+                      description: 구/군
+                      maxLength: 100
+                    latitude:
+                      type: number
+                      format: float
+                      minimum: -90
+                      maximum: 90
+                      description: 위도
+                    longitude:
+                      type: number
+                      format: float
+                      minimum: -180
+                      maximum: 180
+                      description: 경도
       responses:
         '200':
           description: 미용실 정보가 성공적으로 수정됨
@@ -155,38 +207,7 @@ paths:
                   message:
                     type: string
                   salon:
-                    $ref: '#/components/schemas/Salon'
-        '401':
-          description: 인증 실패
-        '404':
-          description: 미용실을 찾을 수 없음
-        '500':
-          description: 서버 오류
-          
-    delete:
-      tags:
-        - salons
-      summary: 미용실 삭제
-      description: 특정 미용실을 삭제합니다
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: salonId
-          required: true
-          schema:
-            type: integer
-          description: 삭제할 미용실 ID
-      responses:
-        '200':
-          description: 미용실이 성공적으로 삭제됨
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
+                    $ref: '#/components/schemas/SalonWithLocation'
         '401':
           description: 인증 실패
         '404':
@@ -208,15 +229,12 @@ components:
         name:
           type: string
           description: 미용실 이름
-        address:
-          type: string
-          description: 미용실 주소
-        region_code:
-          type: string
-          description: 지역 코드
         business_hours:
           type: string
           description: 영업 시간
+        business_number:
+          type: string
+          description: 사업자등록번호
         created_at:
           type: string
           format: date-time
@@ -229,5 +247,87 @@ components:
         - id
         - owner_id
         - name
-        - address
-        - region_code
+        - business_hours
+        - business_number
+
+    Location:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 위치 ID
+        salon_id:
+          type: integer
+          description: 미용실 ID
+        address_line1:
+          type: string
+          description: 기본 주소
+        address_line2:
+          type: string
+          description: 상세 주소
+        city:
+          type: string
+          description: 시/도
+        district:
+          type: string
+          description: 구/군
+        latitude:
+          type: number
+          format: float
+          description: 위도
+        longitude:
+          type: number
+          format: float
+          description: 경도
+        created_at:
+          type: string
+          format: date-time
+          description: 등록 일시
+        updated_at:
+          type: string
+          format: date-time
+          description: 수정 일시
+      required:
+        - id
+        - salon_id
+        - address_line1
+        - city
+        - district
+        - latitude
+        - longitude
+
+    SalonWithLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 미용실 ID
+        owner_id:
+          type: integer
+          description: 소유자 ID
+        name:
+          type: string
+          description: 미용실 이름
+        business_hours:
+          type: string
+          description: 영업 시간
+        business_number:
+          type: string
+          description: 사업자등록번호
+        created_at:
+          type: string
+          format: date-time
+          description: 등록 일시
+        updated_at:
+          type: string
+          format: date-time
+          description: 수정 일시
+        location:
+          $ref: '#/components/schemas/Location'
+      required:
+        - id
+        - owner_id
+        - name
+        - business_hours
+        - business_number
+        - location
