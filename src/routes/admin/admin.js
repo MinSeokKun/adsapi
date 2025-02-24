@@ -161,7 +161,7 @@ router.get('/api/admin/salons', verifyToken, isSuperAdmin, async (req, res) => {
   }
 
   try {
-    const salons = await salonService.findAll();
+    const salons = await salonService.getAllSalons();
 
     res.json({ salons })
   } catch (error) {
