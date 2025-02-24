@@ -5,6 +5,7 @@ const { sponsorAdUpload, handleUploadError } = require('../../middleware/uploadM
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const adService = require('../../services/adService');
+const displayAuth = require('../../middleware/displayAuth');
 
 // 광고 조회
 router.get('/api/ads', 
@@ -31,6 +32,47 @@ router.get('/api/ads',
   
     } catch (error) {
       logger.error('광고 조회 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      res.status(500).json({
+        error: '서버 오류',
+        details: error.message
+      });
+    }
+});
+
+// 디스플레이 용 광고 조회
+router.get('/api/display/ads', 
+  displayAuth,
+  async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      displayId: req.display?.device_id, // userId 대신 displayId로 변경
+      path: req.path,
+      queryParams: sanitizeData(req.query)
+    };
+  
+    try {
+      const { time } = req.query;
+      // display의 salon_id를 기반으로 광고를 필터링
+      const ads = await adService.getAdsByTimeAndLocation(time, req.display.salon_id);
+  
+      logger.info('디스플레이 광고 조회 완료', sanitizeData({
+        ...logContext,
+        adCount: ads.length,
+        hasTimeFilter: !!time
+      }));
+  
+      res.json({ ads });
+  
+    } catch (error) {
+      logger.error('디스플레이 광고 조회 실패', sanitizeData({
         ...logContext,
         error: {
           name: error.name,

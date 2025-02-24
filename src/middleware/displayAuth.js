@@ -9,14 +9,13 @@ const displayAuth = async (req, res, next) => {
     }
 
     const access_token = authHeader.split(' ')[1];
-    const device_id = req.params.device_id; // URL에서 device_id 추출
-
+    console.log('display Token', access_token);
+    
     const display = await Display.findOne({
       where: {
-        device_id,
-        access_token,
-        status: 'active'
-      }
+        access_token
+      },
+      logging: console.log // 실제 실행되는 SQL문 확인
     });
 
     if (!display) {

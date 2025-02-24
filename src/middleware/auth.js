@@ -37,11 +37,11 @@ exports.verifyToken = async (req, res, next) => {
         return res.status(401).json({ message: '유저를 찾을 수 없습니다.' });
       }
 
-      logger.info('토큰 검증 성공', {
-        requestId: req.id,
-        userId: user.id,
-        userRole: user.role
-      });
+      // logger.info('토큰 검증 성공', {
+      //   requestId: req.id,
+      //   userId: user.id,
+      //   userRole: user.role
+      // });
       
       req.user = user;
       next();

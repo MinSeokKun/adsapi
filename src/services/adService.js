@@ -36,6 +36,34 @@ class AdService {
   }
 
   /**
+   * 디스플레이 용 광고 조회 (salon_id로 추적한 광고 목록)
+   */
+  async getAdsByTimeAndLocation(time, salonId) {
+    const queryOptions = {
+      include: [{
+        model: AdMedia,
+        as: 'media',
+        attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+      }, {
+        model: AdSchedule,
+        required: false,
+        attributes: ['time']
+      }],
+      where: {
+        is_active: true
+      }
+    };
+
+    if (time) {
+      queryOptions.include[1].where = { time: time + ':00:00' };
+      queryOptions.include[1].required = true;
+    }
+
+    const ads = await Ad.findAll(queryOptions);
+    return ads.map(ad => formatAdResponse(ad));
+  }
+
+  /**
    * 모든 활성 광고 목록 조회
    */
   async getAllActiveAds() {
