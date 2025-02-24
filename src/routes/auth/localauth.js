@@ -26,7 +26,7 @@ router.post('/auth/signup', async (req, res) => {
   };
 
   try {
-    const user = await authService.signup(req.body, logContext);
+    const user = await userService.signup(req.body, logContext);
     res.status(201).json({ 
       message: '회원가입이 완료되었습니다.',
       user 
@@ -45,7 +45,7 @@ router.post('/auth/login', async (req, res) => {
   };
 
   try {
-    const { user, tokens } = await authService.login(req.body, logContext);
+    const { user, tokens } = await userService.login(req.body, logContext);
     
     // Access Token 쿠키 설정
     res.cookie('jwt', tokens.accessToken, {
@@ -81,7 +81,7 @@ router.post('/forgot-password', async (req, res) => {
   };
 
   try {
-    const { resetToken } = await authService.requestPasswordReset(req.body.email, logContext);
+    const { resetToken } = await userService.requestPasswordReset(req.body.email, logContext);
     
     // 이메일 발송 로직은 여기서 처리
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -102,7 +102,7 @@ router.post('/reset-password', async (req, res) => {
   };
 
   try {
-    await authService.resetPassword(req.body.token, req.body.password, logContext);
+    await userService.resetPassword(req.body.token, req.body.password, logContext);
     res.json({ message: '비밀번호가 성공적으로 재설정되었습니다.' });
   } catch (error) {
     res.status(error.message.includes('유효하지 않거나 만료된') ? 400 : 500)
