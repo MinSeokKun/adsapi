@@ -18,7 +18,7 @@ const userService = require('../../services/userService');
 //   }
 // });
 
-router.post('/signup', async (req, res) => {
+router.post('/auth/signup', async (req, res) => {
   const logContext = {
     requestId: req.id,
     email: req.body.email,
@@ -37,7 +37,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/auth/login', async (req, res) => {
   const logContext = {
     requestId: req.id,
     email: req.body.email,
