@@ -2,6 +2,8 @@ const { Op } = require('sequelize');
 const { User } = require('../models');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
+const tokenHandler = require('../middleware/tokenHandler');
+const crypto = require('crypto');
 
 class UserService {
   async getUsers(params, logContext) {

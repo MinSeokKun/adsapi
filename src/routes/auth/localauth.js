@@ -1,11 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { User } = require('../../models');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const tokenHandler = require('../../middleware/tokenHandler');
-const logger = require('../../config/winston');
-const { sanitizeData } = require('../../utils/sanitizer');
 // const nodemailer = require('nodemailer');
 const userService = require('../../services/userService');
 
