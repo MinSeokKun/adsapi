@@ -1,0 +1,156 @@
+paths:
+  /api/displays:
+    post:
+      summary: 새 디스플레이 등록
+      description: 미용실에 새로운 디스플레이 장치를 등록합니다.
+      tags:
+        - Display
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - salon_id
+              properties:
+                name:
+                  type: string
+                  description: 디스플레이 식별용 이름 (예- 입구, 대기실)
+                  example: "입구 디스플레이"
+                salon_id:
+                  type: integer
+                  description: 미용실 ID
+                  example: 1
+      responses:
+        '201':
+          description: 디스플레이 등록 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  device_id:
+                    type: string
+                    format: uuid
+                    description: 디바이스 고유 ID
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                  access_token:
+                    type: string
+                    description: 디바이스 인증 토큰
+                    example: "a1b2c3d4e5f6..."
+                  name:
+                    type: string
+                    description: 디스플레이 이름
+                    example: "입구 디스플레이"
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 에러
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/displays/activate:
+    post:
+      summary: 디스플레이 활성화
+      description: 디바이스에서 초기 활성화를 수행합니다.
+      tags:
+        - Display
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - device_id
+                - access_token
+              properties:
+                device_id:
+                  type: string
+                  format: uuid
+                  description: 디바이스 고유 ID
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                access_token:
+                  type: string
+                  description: 디바이스 인증 토큰
+                  example: "a1b2c3d4e5f6..."
+      responses:
+        '200':
+          description: 활성화 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "디스플레이가 활성화되었습니다"
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 에러
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Display:
+      type: object
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          description: 디바이스 고유 ID
+        name:
+          type: string
+          description: 디스플레이 이름
+        salon_id:
+          type: integer
+          description: 소속 미용실 ID
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+          description: 디스플레이 상태
+        last_ping:
+          type: string
+          format: date-time
+          description: 마지막 핑 시간
+        settings:
+          type: object
+          description: 디스플레이 설정 정보
+          
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: 에러 메시지
+          example: "서버 에러가 발생했습니다"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

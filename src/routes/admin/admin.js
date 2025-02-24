@@ -6,6 +6,7 @@ const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const { Op } = require('sequelize');
 const userService = require('../../services/userService');
+const salonService = require('../../services/salonService');
 
 // 관리자 대시보드
 router.get('/api/admin/dashboard', verifyToken, isSuperAdmin, async (req, res) => {
@@ -125,6 +126,15 @@ router.get('/api/admin/users', verifyToken, isSuperAdmin, async(req, res) => {
 
     res.json(result);
   } catch (error) {
+    logger.error('관리자 전체 회원 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
     res.status(500).json({
       error: '서버 오류',
       details: error.message
@@ -141,5 +151,34 @@ router.get('/api/admin/ads', verifyToken, isSuperAdmin, async (req, res) => {
   };
 
 });
+
+// 전체 미용실 조회
+router.get('/api/admin/salons', verifyToken, isSuperAdmin, async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    userId: req.user?.id,
+    path: req.path
+  }
+
+  try {
+    const salons = await salonService.findAll();
+
+    res.json({ salons })
+  } catch (error) {
+    logger.error('관리자 전체 미용실 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    res.status(500).json({
+      error: '서버 오류',
+      details: error.message
+    });
+  }
+})
 
 module.exports = router;

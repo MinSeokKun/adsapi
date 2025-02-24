@@ -10,6 +10,7 @@ const SubscriptionPlan = require('./pay/SubscriptionPlan');
 const Payment = require('./pay/payment');
 const Location = require('./auth/location');
 const AdLocation = require('./ad/adLocation');
+const Display = require('./auth/display');
 
 // 광고 관련 관계 설정
 Ad.hasMany(AdSchedule, {
@@ -53,6 +54,19 @@ Salon.hasOne(Location, {
   as: 'location'
 });
 Location.belongsTo(Salon, {
+  foreignKey: 'salon_id',
+  as: 'salon'
+});
+
+// 디스플레이 관계 설정
+Salon.hasMany(Display, {
+  foreignKey: {
+    name: 'salon_id',
+    allowNull: false
+  },
+  as: 'displays'
+});
+Display.belongsTo(Salon, {
   foreignKey: 'salon_id',
   as: 'salon'
 });
@@ -128,6 +142,7 @@ module.exports = {
   AdLocation,
   User,
   Salon,
+  Display,
   Location,
   Payment,
   PaymentRefund,
