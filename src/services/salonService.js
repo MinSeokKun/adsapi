@@ -1,10 +1,23 @@
 const sequelize = require('../config/database');
-const { Salon, Location } = require('../models');
+const { Salon, Location, Display } = require('../models');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const addressService = require('../utils/address');
 
 class SalonService {
+  async getAllSalons() {
+    return Salon.findAll({
+      include: [{
+        model: Location,
+        as: 'location'
+      },
+      {
+        model: Display,
+        as: 'displays'
+      }]
+    });
+  }
+  
   async getAllSalonsByOwnerId(ownerId) {
     const salons = await Salon.findAll({
       where: { owner_id: ownerId },
@@ -137,6 +150,17 @@ class SalonService {
       throw error;
     }
   }
+
+  async checkSalonOwnership(ownerId, salonId) {
+    const salon = await Salon.findOne({
+      where: {
+        id: salonId,
+        owner_id: ownerId
+      }
+    })
+    return salon;
+  }
+  
 }
 // 커스텀 에러 클래스
 class AddressError extends Error {

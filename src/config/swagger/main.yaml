@@ -81,6 +81,13 @@ paths:
   /api/admin/subscription-plans/{planId}:
     $ref: './subscription.yaml#/paths/~1api~1admin~1subscription-plans~1{planId}'
 
+  # display.yaml 파일의 경로들을 포함
+  /api/displays:
+    $ref: './display.yaml#/paths/~1api~1displays'
+  /api/displays/activate:
+    $ref: './display.yaml#/paths/~1api~1displays~1activate'
+
+
 components:
   schemas:
     # auth.yaml의 스키마들을 포함
@@ -116,3 +123,7 @@ components:
       $ref: './subscription.yaml#/components/schemas/SubscriptionPlanRequest'
     SubscriptionPlanUpdateRequest:
       $ref: './subscription.yaml#/components/schemas/SubscriptionPlanUpdateRequest'
+
+    # display.yaml의 스카미들을 포함
+    Display:
+      $ref: './display.yaml#/components/schemas/Display'
