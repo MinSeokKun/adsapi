@@ -35,6 +35,7 @@ class DisplayService {
       if (!display) {
         const error = new Error('Display not found');
         error.statusCode = 404;
+        logger.warn('디스플레이를 찾을 수 없습니다.', sanitizeData(logContext));
         throw error;
       };
 
