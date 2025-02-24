@@ -24,6 +24,10 @@ class SalonService {
       include: [{
         model: Location,
         as: 'location'
+      },
+      {
+        model: Display,
+        as: 'displays'
       }]
     });
     
