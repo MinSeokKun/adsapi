@@ -1,13 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
-const { Display } = require('../../models');
 const SalonService = require('../../services/salonService');
 const DisplayService = require('../../services/displayService');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
-const displayService = require('../../services/displayService');
 const { verifyToken } = require('../../middleware/auth');
 
 // 새 디스플레이 등록 (미용실 관리자만 접근 가능)
