@@ -30,7 +30,7 @@ AdMedia.belongsTo(Ad, {
 // 광고 위치 관계 설정
 Ad.hasMany(AdLocation, {
   foreignKey: 'ad_id',
-  as: 'targetLocations'
+  // as: 'targetLocations'
 });
 AdLocation.belongsTo(Ad, {
   foreignKey: 'ad_id'

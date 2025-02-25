@@ -361,8 +361,7 @@ class AdService {
           required: false,
           attributes: ['time']
         }, {
-          model: AdLocation,
-          as: 'targetLocations'
+          model: AdLocation
         }]
       })
 
