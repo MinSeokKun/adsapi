@@ -131,6 +131,7 @@ function formatAdResponse(ad) {
     title: adData.title,
     type: adData.type,
     salon_id: adData.salon_id,
+    created_at: adData.created_at,
     media: mediaArray.map(m => ({
       url: m.dataValues.url,
       type: m.dataValues.type,
