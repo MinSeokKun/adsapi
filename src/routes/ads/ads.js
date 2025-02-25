@@ -62,6 +62,7 @@ router.get('/api/display/ads',
       const { time } = req.query;
       // display의 salon_id를 기반으로 광고를 필터링
       const ads = await adService.getAdsByTimeAndLocation(time, req.display.salon_id);
+      // const ads = await adService.getAdsForSalonId(req.display.salon_id);
   
       logger.info('디스플레이 광고 조회 완료', sanitizeData({
         ...logContext,
@@ -87,6 +88,32 @@ router.get('/api/display/ads',
       });
     }
 });
+
+// id로 광고 조회
+router.get('/api/ads/:id', verifyToken, async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+      userId: req.user?.id,
+      path: req.path
+  };
+
+  try {
+    const ad = await adService.getAdForId(req.params.id);
+
+    res.json({ ad });
+  } catch (error) {
+    logger.error('광고 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    res.status(500).json({ error: '서버 오류' });
+  }
+})
 
 // 광고 전체 목록 조회 (삭제 할지도)
 router.get('/api/ads/list',

@@ -50,6 +50,8 @@ paths:
     $ref: './ads.yaml#/paths/~1api~1ads'
   /api/ads/list:
     $ref: './ads.yaml#/paths/~1api~1ads~1list'
+  /api/display/ads:
+    $ref: './ads.yaml#/paths/~1api~1display~1ads'
   /api/ads/{id}:
     $ref: './ads.yaml#/paths/~1api~1ads~1{id}'
   /api/ads/schedule:
