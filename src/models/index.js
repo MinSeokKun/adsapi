@@ -48,8 +48,8 @@ Salon.belongsTo(User, {
 
 Salon.hasOne(Location, {
   foreignKey: {
-      name: 'salon_id',
-      allowNull: false
+    name: 'salon_id',
+    allowNull: false
   },
   as: 'location'
 });

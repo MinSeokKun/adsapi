@@ -1,10 +1,11 @@
 // src/services/adService.js
 const sequelize = require('../config/database');
-const { Ad, AdMedia, AdSchedule } = require('../models');
+const { Ad, AdMedia, AdSchedule, Salon, AdLocation } = require('../models');
 const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse } = require('../utils/adUtils');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const { storage } = require('../config/storage')
+const { Op } = require('sequelize');
 
 class AdService {
   /**
@@ -81,6 +82,72 @@ class AdService {
     return ads.map(ad => formatAdResponse(ad));
   }
 
+  async getAdsForSalonId(salonId) {
+    const salon = Salon.findOne({
+      where: { salon_id: salonId },
+      include: [{
+        model: Location,
+        as: 'location'
+      }]
+    });
+
+  
+    if (!salon || !salon.location) {
+      throw new Error('Salon or location not found');
+    }
+  
+    const salonLocation = salon.location;
+  
+    // 2. 모든 타입의 광고 한 번에 가져오기 (전국, 행정구역, 반경 모두 포함)
+    const ads = await Ad.findAll({
+      where: { is_active: true },
+      include: [
+        {
+          model: AdMedia,
+          as: 'media'
+        },
+        {
+          model: AdSchedule,
+          required: false,
+          attributes: ['time']
+        },
+        {
+          model: AdLocation,
+          as: 'targetLocations',
+          required: true,
+          where: {
+            [Op.or]: [
+              // 전국 광고
+              { target_type: 'nationwide' },
+              
+              // 행정구역 기반 광고
+              {
+                target_type: 'administrative',
+                city: salonLocation.city,
+                [Op.or]: [
+                  { district: salonLocation.district },
+                  { district: null } // 구/군 미지정인 경우 (시/도 단위 타겟팅)
+                ]
+              },
+              
+              // 반경 기반 광고 - MySQL 지리공간 쿼리 사용
+              sequelize.literal(`
+                target_type = 'radius' AND 
+                ST_Distance_Sphere(
+                  point(center_longitude, center_latitude),
+                  point(${salonLocation.longitude}, ${salonLocation.latitude})
+                ) <= radius
+              `)
+            ]
+          }
+        }
+      ],
+      group: ['Ad.id']
+    });
+    
+    return ads;
+  }
+  
   /**
    * 새로운 광고 등록
    */
@@ -276,6 +343,31 @@ class AdService {
       if (transaction) {
         await transaction.rollback();
       }
+      throw error;
+    }
+  }
+
+  // ID로 광고 조회
+  async getAdForId(id) {
+    try {
+      const ad = Ad.findOne({
+        where: { id },
+        include: [{
+          model: AdMedia,
+          as: 'media',
+          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+        }, {
+          model: AdSchedule,
+          required: false,
+          attributes: ['time']
+        }, {
+          model: AdLocation,
+          as: 'targetLocations'
+        }]
+      })
+
+      return ad;
+    } catch (error) {
       throw error;
     }
   }

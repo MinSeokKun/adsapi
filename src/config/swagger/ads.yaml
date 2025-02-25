@@ -131,6 +131,42 @@ paths:
                   details:
                     type: string
 
+  /api/display/ads:
+    get:
+      tags:
+        - ads
+      summary: 디스플레이용 광고 조회
+      description: 특정 디스플레이에 표시할 광고를 조회합니다. 시간 및 위치 기반으로 필터링됩니다.
+      security:
+        - displayAuth: []
+      parameters:
+        - name: time
+          in: query
+          required: false
+          description: 특정 시간에 표시할 광고 필터링 ("14")
+          schema:
+            type: string
+            format: time
+      responses:
+        '200':
+          description: 성공적으로 광고 목록 조회
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/ads/list:
     get:
       tags:
@@ -153,6 +189,46 @@ paths:
           description: 서버 오류
 
   /api/ads/{id}:
+    get:
+      tags:
+        - ads
+      summary: ID로 광고 조회
+      description: 특정 ID의 광고 정보를 조회합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 조회할 광고의 ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 성공적으로 광고 조회
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 광고를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
     put:
       tags:
         - ads
