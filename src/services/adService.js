@@ -33,7 +33,7 @@ class AdService {
     }
 
     const ads = await Ad.findAll(queryOptions);
-    return ads.map(ad => formatAdResponse(ad));
+    return ads;
   }
 
   /**
@@ -184,48 +184,162 @@ class AdService {
   }
 
   /**
-   * 광고 수정
-   */
-  async updateAd(id, { title, is_active, schedules, files }, logContext = {}) {
-    let transaction;
+ * 광고 수정
+ */
+async updateAd(id, { title, is_active, schedules, media, targetLocations }, logContext = {}) {
+  let transaction;
 
-    try {
-      transaction = await sequelize.transaction();
-      const ad = await Ad.findByPk(id);
-      if (!ad) {
-        logger.warn('존재하지 않는 광고 수정 시도', sanitizeData(logContext));
-        throw new Error('광고를 찾을 수 없습니다');
-      }
-      
-      logger.info('광고 기본 정보 수정', sanitizeData({
-        ...logContext,
-        updateFields: { title, is_active }
-      }));
-
-      await ad.update({ title, is_active }, { transaction });
-
-      if (files?.maxFiles || files?.minFiles) {
-        await updateAdMedia({
-          adId: id,
-          files: files,
-          transaction,
-          type: 'sponsor'
-        });
-      }
-
-      const parsedSchedules = await updateAdSchedules(id, schedules, transaction);
-      await transaction.commit();
-
-      const updatedAd = await getAdDetails(id);
-      return formatAdResponse(updatedAd);
-    } catch (error) {
-      if (transaction) {
-        await transaction.rollback();
-      }
-      throw error;
+  try {
+    transaction = await sequelize.transaction();
+    const ad = await Ad.findByPk(id);
+    if (!ad) {
+      logger.warn('존재하지 않는 광고 수정 시도', sanitizeData(logContext));
+      throw new Error('광고를 찾을 수 없습니다');
     }
-  }
+    
+    // 1. 광고 기본 정보 업데이트
+    logger.info('광고 기본 정보 수정', sanitizeData({
+      ...logContext,
+      updateFields: { title, is_active }
+    }));
+    await ad.update({ title, is_active }, { transaction });
 
+    // 2. 미디어 관계 동기화
+    if (media !== undefined) {
+      await this.syncAdMedia(id, media, transaction, logContext);
+    }
+
+    // 3. 스케줄 업데이트
+    if (schedules !== undefined) {
+      await this.syncAdSchedules(id, schedules, transaction, logContext);
+    }
+
+    // 4. 타겟 위치 동기화
+    if (targetLocations !== undefined) {
+      await this.syncAdLocations(id, targetLocations, transaction, logContext);
+    }
+
+    await transaction.commit();
+
+    // 업데이트된 광고 정보 조회
+    const updatedAd = await this.getAdDetails(id);
+    return formatAdResponse(updatedAd);
+  } catch (error) {
+    if (transaction) {
+      await transaction.rollback();
+    }
+    logger.error('광고 수정 오류', sanitizeData({
+      ...logContext,
+      error: {
+        message: error.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    throw error;
+  }
+}
+
+/**
+ * 광고 미디어 동기화
+ */
+async syncAdMedia(adId, mediaIds, transaction, logContext = {}) {
+  logger.info('광고 미디어 동기화', sanitizeData({
+    ...logContext,
+    adId,
+    mediaIds
+  }));
+  
+  // 현재 광고에 연결된 미디어 가져오기
+  const existingMedia = await AdMedia.findAll({
+    where: { ad_id: adId },
+    attributes: ['id'],
+    transaction
+  });
+  
+  const existingMediaIds = existingMedia.map(m => m.id);
+  
+  // 삭제할 미디어: 기존에 있지만 요청에 없는 ID
+  const mediaToDelete = existingMediaIds.filter(mediaId => 
+    !mediaIds.includes(mediaId)
+  );
+  
+  // 미디어 삭제
+  if (mediaToDelete.length > 0) {
+    logger.info('삭제할 미디어', sanitizeData({
+      ...logContext, 
+      mediaToDelete
+    }));
+    
+    await AdMedia.destroy({
+      where: { 
+        id: mediaToDelete,
+        ad_id: adId
+      },
+      transaction
+    });
+  }
+  
+  // 미디어 순서 업데이트 등 추가 로직이 필요하면 여기에 구현
+  return true;
+}
+
+/**
+ * 광고 스케줄 동기화
+ */
+async syncAdSchedules(adId, schedules, transaction, logContext = {}) {
+  logger.info('광고 스케줄 동기화', sanitizeData({
+    ...logContext,
+    adId,
+    schedules
+  }));
+  
+  // 기존 스케줄 삭제
+  await AdSchedule.destroy({
+    where: { ad_id: adId },
+    transaction
+  });
+  
+  // 새 스케줄 생성
+  if (schedules && schedules.length > 0) {
+    await Promise.all(schedules.map(schedule => 
+      AdSchedule.create({
+        ad_id: adId,
+        time: schedule,
+      }, { transaction })
+    ));
+  }
+  
+  return true;
+}
+
+/**
+ * 광고 타겟 위치 동기화
+ */
+async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
+  logger.info('광고 타겟 위치 동기화', sanitizeData({
+    ...logContext,
+    adId,
+    targetLocationCount: targetLocations?.length
+  }));
+  
+  // 기존 타겟 위치 삭제
+  await AdLocation.destroy({
+    where: { ad_id: adId },
+    transaction
+  });
+  
+  // 새 타겟 위치 생성
+  if (targetLocations && targetLocations.length > 0) {
+    await Promise.all(targetLocations.map(location => 
+      AdLocation.create({
+        ...location,
+        ad_id: adId
+      }, { transaction })
+    ));
+  }
+  
+  return true;
+}
 
   /**
    * 광고 삭제
@@ -354,8 +468,7 @@ class AdService {
         where: { id },
         include: [{
           model: AdMedia,
-          as: 'media',
-          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+          as: 'media'
         }, {
           model: AdSchedule,
           required: false,

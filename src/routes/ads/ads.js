@@ -6,6 +6,7 @@ const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const adService = require('../../services/adService');
 const displayAuth = require('../../middleware/displayAuth');
+const mediaService = require('../../services/mediaService');
 
 // 광고 조회
 router.get('/api/ads', 
@@ -206,8 +207,6 @@ router.post('/api/ads',
 router.put('/api/ads/:id', 
   // verifyToken, 
   // isAdmin, 
-  sponsorAdUpload,
-  handleUploadError,
   async (req, res) => {
 
   const logContext = {
@@ -215,29 +214,25 @@ router.put('/api/ads/:id',
     userId: req.user?.id,
     adId: req.params.id,
     path: req.path,
-    requestData: sanitizeData(req.body),
-    fileInfo: req.files ? {
-      count: Object.values(req.files).reduce((acc, files) => acc + files.length, 0),
-      totalSize: Object.values(req.files).reduce((acc, files) => 
-        acc + files.reduce((sum, file) => sum + file.size, 0), 0)
-    } : null
+    requestData: sanitizeData(req.body)
   };
 
   try {
     const { id } = req.params;
-      const { title, is_active, schedules } = req.body;
-      
-      const updatedAd = await adService.updateAd(id, {
-        title,
-        is_active,
-        schedules,
-        files: req.files
-      }, logContext);  // logContext를 추가로 전달
+    const { title, is_active, schedules, media, targetLocations } = req.body;
+    
+    const updatedAd = await adService.updateAd(id, {
+      title,
+      is_active,
+      schedules,
+      media,
+      targetLocations
+    }, logContext);
 
-      res.json({ 
-        message: '광고가 성공적으로 수정되었습니다',
-        ad: updatedAd
-      });
+    res.json({ 
+      message: '광고가 성공적으로 수정되었습니다',
+      ad: updatedAd
+    });
 
   } catch (error) {
     logger.error('광고 수정 실패', sanitizeData({
@@ -333,6 +328,46 @@ router.post('/api/ads/schedule',
         details: error.message 
       });
     }
-  });
+});
+
+// 새 광고 미디어 추가
+router.post('/api/ads/:id/media', sponsorAdUpload, async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    userId: req.user?.id,
+    adId: req.params.id,
+    path: req.path,
+    fileInfo: req.files ? {
+      count: Object.values(req.files).reduce((acc, files) => acc + files.length, 0),
+      totalSize: Object.values(req.files).reduce((acc, files) => 
+        acc + files.reduce((sum, file) => sum + file.size, 0), 0)
+    } : null
+  };
+
+  try {
+    const newMedia = await mediaService.createNewMedia(req.params.id, req.files);
+
+    logger.info('광고 미디어 등록 완료', sanitizeData(logContext));
+
+    res.status(201).json({
+      message: '광고 미디어가 성공적으로 저장되었습니다.',
+      media: newMedia
+    });
+  } catch (error) {
+    logger.error('광고 등록 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    res.status(500).json({ 
+      error: '광고 미디어 저장 중 오류가 발생했습니다',
+      details: error.message 
+    });
+  }
+})
 
 module.exports = router;
