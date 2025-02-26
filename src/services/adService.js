@@ -220,9 +220,10 @@ async updateAd(id, { title, is_active, schedules, media, targetLocations }, logC
     }
 
     await transaction.commit();
+    transaction = null;
 
     // 업데이트된 광고 정보 조회
-    const updatedAd = await this.getAdDetails(id);
+    const updatedAd = await getAdDetails(id);
     return formatAdResponse(updatedAd);
   } catch (error) {
     if (transaction) {
