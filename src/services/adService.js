@@ -61,7 +61,7 @@ class AdService {
     }
 
     const ads = await Ad.findAll(queryOptions);
-    return ads.map(ad => formatAdResponse(ad));
+    return ads;
   }
 
   /**
@@ -79,7 +79,7 @@ class AdService {
       }
     });
 
-    return ads.map(ad => formatAdResponse(ad));
+    return ads;
   }
 
   async getAdsForSalonId(salonId) {
@@ -176,7 +176,7 @@ class AdService {
         }]
       });
 
-      return formatAdResponse(createdAd);
+      return createdAd;
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -224,7 +224,7 @@ async updateAd(id, { title, is_active, schedules, media, targetLocations }, logC
 
     // 업데이트된 광고 정보 조회
     const updatedAd = await getAdDetails(id);
-    return formatAdResponse(updatedAd);
+    return updatedAd;
   } catch (error) {
     if (transaction) {
       await transaction.rollback();
@@ -422,7 +422,6 @@ async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
           {
             model: AdMedia,
             as: 'media',
-            attributes: ['url', 'type', 'duration', 'size', 'is_primary']
           },
           {
             model: AdSchedule,
@@ -432,28 +431,13 @@ async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
         ]
       });
 
-      const formattedAds = updatedAds.map(ad => ({
-        id: ad.id,
-        title: ad.title,
-        media: ad.media.map(m => ({
-          url: m.url,
-          type: m.type,
-          duration: m.duration,
-          size: m.size,
-          is_primary: m.is_primary
-        })),
-        schedules: ad.AdSchedules.map(schedule => 
-          parseInt(schedule.time.split(':')[0])
-        ).sort((a, b) => a - b)
-      }));
-
       logger.info('광고 스케줄 저장 완료', sanitizeData({
         ...logContext,
         adCount: adIds.length,
         totalSchedules: formattedAds.reduce((acc, ad) => acc + ad.schedules.length, 0)
       }));
 
-      return formattedAds;
+      return updatedAds;
     } catch (error) {
       if (transaction) {
         await transaction.rollback();
