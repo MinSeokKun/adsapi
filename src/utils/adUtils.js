@@ -1,7 +1,7 @@
 // src/utils/adUtils.js
 const { createMediaInfo } = require('./mediaUtils');
 const { storage, STORAGE_PATHS } = require('../config/storage');
-const { AdMedia, Ad, AdSchedule } = require('../models');
+const { AdMedia, Ad, AdSchedule, AdLocation } = require('../models');
 
 function parseSchedules (schedulesInput) {
   if (!schedulesInput) return [];
@@ -238,12 +238,13 @@ async function getAdDetails(adId) {
   return Ad.findByPk(adId, {
     include: [{
       model: AdMedia,
-      as: 'media',
-      attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+      as: 'media'
     }, {
       model: AdSchedule,
       required: false,
       attributes: ['time']
+    }, {
+      model: AdLocation
     }],
   });
 }
