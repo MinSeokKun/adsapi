@@ -3,6 +3,7 @@ const { Salon, Location, Display } = require('../models');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const addressService = require('../utils/address');
+const { Op } = require('sequelize');
 
 class SalonService {
   async getAllSalons() {
@@ -165,6 +166,160 @@ class SalonService {
     return salon;
   }
   
+  /**
+   * Search for salons by city and district with pagination
+   * 
+   * @param {Object} options - Search options
+   * @param {string} options.city - City name
+   * @param {string} options.district - District name
+   * @param {string} options.keyword - Keyword for name search
+   * @param {number} options.page - Page number (starts from 1)
+   * @param {number} options.limit - Number of items per page
+   * @param {string} options.sortBy - Sort field (e.g., 'name', 'created_at')
+   * @param {string} options.sortOrder - Sort order ('ASC' or 'DESC')
+   * @returns {Object} - Paginated salon data with location info
+   */
+  async searchSalons(options) {
+    const {
+      city,
+      district,
+      keyword = '',
+      page = 1,
+      limit = 10,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    // Validate page and limit
+    const validatedPage = Math.max(1, parseInt(page, 10));
+    const validatedLimit = Math.max(1, Math.min(50, parseInt(limit, 10)));
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    // Base query options
+    const queryOptions = {
+      include: [
+        {
+          model: Location,
+          as: 'location',
+          required: true
+        }
+      ],
+      order: [[sortBy, sortOrder]],
+      limit: validatedLimit,
+      offset: offset,
+      distinct: true
+    };
+
+    // Build where conditions
+    const whereConditions = {};
+    const locationWhereConditions = {};
+
+    // Add keyword search to where conditions
+    if (keyword && keyword.trim() !== '') {
+      whereConditions.name = {
+        [Op.like]: `%${keyword.trim()}%`
+      };
+    }
+
+    // Add location filtering
+    if (city) {
+      locationWhereConditions.city = city;
+    }
+    
+    if (district) {
+      locationWhereConditions.district = district;
+    }
+
+    // Apply where conditions
+    if (Object.keys(locationWhereConditions).length > 0) {
+      queryOptions.include[0].where = locationWhereConditions;
+    }
+
+    if (Object.keys(whereConditions).length > 0) {
+      queryOptions.where = whereConditions;
+    }
+
+    // Get paginated data
+    const { count, rows } = await Salon.findAndCountAll(queryOptions);
+
+    // Calculate pagination metadata
+    const totalItems = count;
+    const totalPages = Math.ceil(totalItems / validatedLimit);
+    const hasNext = validatedPage < totalPages;
+    const hasPrevious = validatedPage > 1;
+
+    return {
+      data: rows,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrevious
+      }
+    };
+  }
+
+  /**
+   * Get list of all available cities
+   * 
+   * @returns {Array} - Array of unique cities
+   */
+  async getCities() {
+    const cities = await Location.findAll({
+      attributes: [
+        'city',
+        [sequelize.fn('COUNT', sequelize.col('salon_id')), 'salonCount']
+      ],
+      group: ['city'],
+      order: [['city', 'ASC']]
+    });
+    
+    return cities;
+  }
+
+  /**
+   * Get districts for a specific city
+   * 
+   * @param {string} city - City name
+   * @returns {Array} - Array of districts in the city
+   */
+  async getDistricts(city) {
+    const districts = await Location.findAll({
+      attributes: [
+        'district',
+        [sequelize.fn('COUNT', sequelize.col('salon_id')), 'salonCount']
+      ],
+      where: {
+        city
+      },
+      group: ['district'],
+      order: [['district', 'ASC']]
+    });
+    
+    return districts;
+  }
+  
+  /**
+   * Get popular cities with salon counts
+   * 
+   * @param {number} limit - Maximum number of results to return
+   * @returns {Array} - Array of cities with salon counts
+   */
+  async getPopularCities(limit = 10) {
+    const popularCities = await Location.findAll({
+      attributes: [
+        'city',
+        [sequelize.fn('COUNT', sequelize.col('salon_id')), 'salonCount']
+      ],
+      group: ['city'],
+      order: [[sequelize.literal('salonCount'), 'DESC']],
+      limit
+    });
+    
+    return popularCities;
+  }
 }
 // 커스텀 에러 클래스
 class AddressError extends Error {

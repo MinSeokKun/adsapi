@@ -215,41 +215,235 @@ paths:
         '500':
           description: 서버 오류
 
+  /api/salons/search:
+    get:
+      tags:
+        - salons
+      summary: 미용실 위치 기반 검색
+      description: 도시, 구/군, 키워드 등을 기반으로 미용실을 검색합니다
+      parameters:
+        - in: query
+          name: city
+          schema:
+            type: string
+          description: 검색할 도시
+        - in: query
+          name: district
+          schema:
+            type: string
+          description: 검색할 구/군
+        - in: query
+          name: keyword
+          schema:
+            type: string
+          description: 검색어 (미용실 이름, 주소 등)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: 페이지 번호 (기본값 1)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: 페이지당 결과 수 (기본값 10)
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            default: created_at
+            enum: [id, name, created_at]
+          description: 정렬 기준 (기본값 created_at)
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            default: DESC
+            enum: [ASC, DESC]
+          description: 정렬 순서 (기본값 DESC)
+      responses:
+        '200':
+          description: 성공적으로 미용실 검색 결과를 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalonWithLocation'
+                  pagination:
+                    type: object
+                    properties:
+                      totalItems:
+                        type: integer
+                        description: 총 검색 결과 수
+                      currentPage:
+                        type: integer
+                        description: 현재 페이지 번호
+                      pageSize:
+                        type: integer
+                        description: 페이지당 결과 수
+                      totalPages:
+                        type: integer
+                        description: 총 페이지 수
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 위치 기반 검색 중 오류가 발생했습니다
+
+  /api/salons/cities:
+    get:
+      tags:
+        - salons
+      summary: 모든 도시 목록 조회
+      description: 시스템에 등록된 모든 도시 목록을 조회합니다
+      responses:
+        '200':
+          description: 성공적으로 도시 목록을 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      description: 도시 이름
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 도시 목록을 가져오는 중 오류가 발생했습니다
+
+  /api/salons/cities/{city}/districts:
+    get:
+      tags:
+        - salons
+      summary: 특정 도시의 구/군 목록 조회
+      description: 특정 도시의 모든 구/군 목록을 조회합니다
+      parameters:
+        - in: path
+          name: city
+          required: true
+          schema:
+            type: string
+          description: 도시 이름
+      responses:
+        '200':
+          description: 성공적으로 구/군 목록을 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      description: 구/군 이름
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 도시 파라미터가 필요합니다
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 구/군 목록을 가져오는 중 오류가 발생했습니다
+
+  /api/salons/popular-cities:
+    get:
+      tags:
+        - salons
+      summary: 인기 도시 목록 조회
+      description: 사용자가 자주 찾는 인기 도시 목록을 조회합니다
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: 조회할 인기 도시 수 (기본값 10)
+      responses:
+        '200':
+          description: 성공적으로 인기 도시 목록을 조회함
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      description: 인기 도시 이름
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: 인기 도시 목록을 가져오는 중 오류가 발생했습니다
+
 components:
   schemas:
-    Salon:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: 미용실 ID
-        owner_id:
-          type: integer
-          description: 소유자 ID
-        name:
-          type: string
-          description: 미용실 이름
-        business_hours:
-          type: string
-          description: 영업 시간
-        business_number:
-          type: string
-          description: 사업자등록번호
-        created_at:
-          type: string
-          format: date-time
-          description: 등록 일시
-        updated_at:
-          type: string
-          format: date-time
-          description: 수정 일시
-      required:
-        - id
-        - owner_id
-        - name
-        - business_hours
-        - business_number
-
     Location:
       type: object
       properties:
@@ -331,3 +525,36 @@ components:
         - business_hours
         - business_number
         - location
+
+    Salon:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 미용실 ID
+        owner_id:
+          type: integer
+          description: 소유자 ID
+        name:
+          type: string
+          description: 미용실 이름
+        business_hours:
+          type: string
+          description: 영업 시간
+        business_number:
+          type: string
+          description: 사업자등록번호
+        created_at:
+          type: string
+          format: date-time
+          description: 등록 일시
+        updated_at:
+          type: string
+          format: date-time
+          description: 수정 일시
+      required:
+        - id
+        - owner_id
+        - name
+        - business_hours
+        - business_number

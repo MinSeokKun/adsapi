@@ -62,6 +62,14 @@ paths:
     $ref: './salon.yaml#/paths/~1api~1salons'
   /api/salons/{salonId}:
     $ref: './salon.yaml#/paths/~1api~1salons~1{salonId}'
+  /api/salons/search:
+    $ref: './salon.yaml#/paths/~1api~1salons~1search'
+  /api/salons/cities:
+    $ref: './salon.yaml#/paths/~1api~1salons~1cities'
+  /api/salons/cities/{city}/districts:
+    $ref: './salon.yaml#/paths/~1api~1salons~1cities~1{city}~1districts'
+  /api/salons/popular-cities:
+    $ref: './salon.yaml#/paths/~1api~1salons~1popular-cities'
 
   # salonAds.yaml 파일의 경로들을 포함
   /api/ads/salon:

@@ -158,6 +158,7 @@ try {
   const swaggerDocument = loadSwaggerDocument();
   app.use('/api-docs', verifyToken, isSuperAdmin, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } catch (error) {
+  console.error(error);
   logger.error('Swagger 문서 로드 실패:', { error });
 }
 
