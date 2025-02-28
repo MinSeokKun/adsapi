@@ -105,6 +105,194 @@ router.post('/api/salons', verifyToken, async (req, res) => {
   }
 });
 
+
+router.get('/api/salons/search', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    path: req.path,
+    query: sanitizeData(req.query)
+  };
+  
+  try {
+    const {
+      city,
+      district,
+      keyword,
+      page,
+      limit,
+      sortBy,
+      sortOrder
+    } = req.query;
+    
+    // Parse options
+    const parsedOptions = {
+      city,
+      district,
+      keyword,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+      sortBy: sortBy || 'created_at',
+      sortOrder: (sortOrder || 'DESC').toUpperCase()
+    };
+    
+    const result = await salonService.searchSalons(parsedOptions);
+    
+    logger.info('미용실 위치 기반 검색 성공', sanitizeData({
+      ...logContext,
+      resultCount: result.data.length,
+      totalItems: result.pagination.totalItems
+    }));
+    
+    return res.status(200).json({
+      status: 'success',
+      ...result
+    });
+  } catch (error) {
+    logger.error('미용실 위치 기반 검색 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    return res.status(500).json({
+      status: 'error',
+      message: '위치 기반 검색 중 오류가 발생했습니다',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.get('/api/salons/cities', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    path: req.path
+  };
+  
+  try {
+    const cities = await salonService.getCities();
+    
+    logger.info('도시 목록 조회 성공', sanitizeData({
+      ...logContext,
+      count: cities.length
+    }));
+    
+    return res.status(200).json({
+      status: 'success',
+      data: cities
+    });
+  } catch (error) {
+    logger.error('도시 목록 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    return res.status(500).json({
+      status: 'error',
+      message: '도시 목록을 가져오는 중 오류가 발생했습니다',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.get('/api/salons/cities/:city/districts', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    path: req.path,
+    city: req.params.city
+  };
+  
+  try {
+    const { city } = req.params;
+    
+    if (!city) {
+      logger.warn('구/군 목록 조회 실패: 도시 파라미터 누락', sanitizeData(logContext));
+      return res.status(400).json({
+        status: 'error',
+        message: '도시 파라미터가 필요합니다'
+      });
+    }
+    
+    const districts = await salonService.getDistricts(city);
+    
+    logger.info('구/군 목록 조회 성공', sanitizeData({
+      ...logContext,
+      count: districts.length
+    }));
+    
+    return res.status(200).json({
+      status: 'success',
+      data: districts
+    });
+  } catch (error) {
+    logger.error('구/군 목록 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    return res.status(500).json({
+      status: 'error',
+      message: '구/군 목록을 가져오는 중 오류가 발생했습니다',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.get('/api/salons/popular-cities', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    path: req.path,
+    limit: req.query.limit
+  };
+  
+  try {
+    const { limit } = req.query;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    
+    const popularCities = await salonService.getPopularCities(parsedLimit);
+    
+    logger.info('인기 도시 목록 조회 성공', sanitizeData({
+      ...logContext,
+      count: popularCities.length,
+      limit: parsedLimit
+    }));
+    
+    return res.status(200).json({
+      status: 'success',
+      data: popularCities
+    });
+  } catch (error) {
+    logger.error('인기 도시 목록 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    return res.status(500).json({
+      status: 'error',
+      message: '인기 도시 목록을 가져오는 중 오류가 발생했습니다',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // 미용실 상세 조회
 router.get('/api/salons/:salonId', verifyToken, async (req, res) => {
   const logContext = {
@@ -118,6 +306,7 @@ router.get('/api/salons/:salonId', verifyToken, async (req, res) => {
     const salon = await salonService.getSalonById(req.params.salonId, req.user.id);
 
     if (!salon) {
+      console.log('경로 확인', req.path)
       logger.warn('존재하지 않는 미용실 조회', sanitizeData(logContext));
       return res.status(404).json({ message: '미용실을 찾을 수 없습니다.' });
     }
@@ -221,4 +410,4 @@ router.delete('/api/salons/:salonId', verifyToken, async (req, res) => {
   }
 });
 
-module.exports = router;module.exports = router;
+module.exports = router;

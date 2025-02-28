@@ -312,12 +312,16 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
 
 router.get('/auth/me', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
     const logContext = {
       requestId: req.id,
-      userId: userId,
+      userId: req.user?.id,
       path: req.path,
     };
+
+    if (!userId) {
+      return res.json({ message: '사용자를 찾을 수 없습니다.' });
+    }
     
     // 사용자 정보 조회
     const user = await User.findOne({ 

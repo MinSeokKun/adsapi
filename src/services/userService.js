@@ -101,7 +101,8 @@ class UserService {
       
       const user = await User.create({
         ...userData,
-        provider: "local"
+        provider: "local",
+        last_login: new Date()
       });
 
       logger.info('회원가입 완료', sanitizeData({ ...logContext, userId: user.id }));
