@@ -181,4 +181,33 @@ router.get('/api/admin/salons', verifyToken, isSuperAdmin, async (req, res) => {
   }
 })
 
+// 미용실 상세 조회
+router.get('/api/admin/salon/:id', verifyToken, isSuperAdmin, async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    userId: req.user?.id,
+    path: req.path
+  };
+
+  try {
+    const salon = await salonService.adminGetSalonById(req.params.id);
+
+    res.json({ salon });
+  } catch (error) {
+    logger.error('관리자용 미용실 상세 조회 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    res.status(500).json({
+      error: '서버 오류',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
