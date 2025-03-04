@@ -1,5 +1,5 @@
 const sequelize = require('../config/database');
-const { Salon, Location, Display } = require('../models');
+const { Salon, Location, Display, User } = require('../models');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const addressService = require('../utils/address');
@@ -44,6 +44,23 @@ class SalonService {
       include: [{
         model: Location,
         as: 'location'
+      }]
+    });
+
+    return salon;
+  }
+
+  async adminGetSalonById(salonId) {
+    const salon = await Salon.findOne({
+      where: { 
+        id: salonId,
+      },
+      include: [{
+        model: Location,
+        as: 'location'
+      },{
+        model: User,
+        as: 'owner'
       }]
     });
 
@@ -202,6 +219,11 @@ class SalonService {
           model: Location,
           as: 'location',
           required: true
+        },
+        {
+          model: User,
+          as: 'owner',
+          attributes: ['name']
         }
       ],
       order: [[sortBy, sortOrder]],
