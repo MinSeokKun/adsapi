@@ -5,6 +5,7 @@ const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const salonService = require('../../services/salonService');
+const activityService = require('../../services/activityService');
 
 // 개인 미용실 조회
 router.get('/api/salons', verifyToken, async (req, res) => {
@@ -72,6 +73,12 @@ router.post('/api/salons', verifyToken, async (req, res) => {
       ...logContext,
       salonId: result.salon.id
     }));
+
+    await activityService.recordActivity(req.user.id, 'salon_create', {
+      salonId: result.id,
+      salonName: result.name,
+      location: address
+    });
 
     res.status(201).json({ 
       message: "미용실이 등록되었습니다.",
@@ -339,8 +346,29 @@ router.put('/api/salons/:salonId', verifyToken, async (req, res) => {
   };
 
   try {
-    const { salon: salonData, location: locationData } = req.body;
+    // Adjust this to handle the current request body structure
+    const locationData = req.body.location;
+    const salonData = {...req.body};
+    delete salonData.location; // Remove location from salon data
+    delete salonData.owner; // Exclude owner data from updates
+    delete salonData.displays; // Exclude displays from updates
     
+    // Also exclude system fields that shouldn't be manually updated
+    delete salonData.id;
+    delete salonData.createdAt;
+    delete salonData.updatedAt;
+    delete salonData.created_at;
+    delete salonData.updated_at;
+    
+    // 변경 전 미용실 데이터 조회
+    const originalSalon = await salonService.getSalonById(req.params.salonId, req.user.id, logContext);
+    
+    if (!originalSalon) {
+      logger.warn('존재하지 않는 미용실 수정 시도', sanitizeData(logContext));
+      return res.status(404).json({ message: '미용실을 찾을 수 없습니다.' });
+    }
+    
+    // 미용실 소유권 확인은 updateSalon 내부에서 처리된다고 가정
     const updatedSalon = await salonService.updateSalon(
       req.params.salonId, 
       req.user.id, 
@@ -348,10 +376,54 @@ router.put('/api/salons/:salonId', verifyToken, async (req, res) => {
       locationData
     );
 
+    // 변경된 필드 추적
+    const changedFields = [];
+    const previousValues = {};
+    
+    // salon 객체 변경사항 추적 - 제외해야 할 필드 목록
+    const excludeFields = ['id', 'createdAt', 'updatedAt', 'created_at', 'updated_at', 'owner', 'displays'];
+    
+    // salon 객체 변경사항 추적
+    if (salonData) {
+      Object.keys(salonData).forEach(key => {
+        // 제외해야 할 필드는 건너뛰기
+        if (excludeFields.includes(key)) return;
+        
+        if (originalSalon[key] !== salonData[key]) {
+          changedFields.push(key);
+          previousValues[key] = originalSalon[key];
+        }
+      });
+    }
+    
+    // location 객체 변경사항 추적 - 제외해야 할 필드 목록
+    const excludeLocationFields = ['id', 'createdAt', 'updatedAt', 'salon_id'];
+    
+    // location 객체 변경사항 추적
+    if (locationData && originalSalon.location) {
+      Object.keys(locationData).forEach(key => {
+        // 제외해야 할 필드는 건너뛰기
+        if (excludeLocationFields.includes(key)) return;
+        
+        if (originalSalon.location[key] !== locationData[key]) {
+          changedFields.push(`location_${key}`);
+          previousValues[`location_${key}`] = originalSalon.location[key];
+        }
+      });
+    }
+
     logger.info('미용실 정보 수정 성공', sanitizeData({
       ...logContext,
-      updatedFields: Object.keys(req.body)
+      changedFields
     }));
+
+    // 활동 기록
+    await activityService.recordActivity(req.user.id, 'salon_update', {
+      salonId: updatedSalon.id,
+      salonName: updatedSalon.name,
+      changedFields,
+      previousValues
+    });
 
     res.json({ 
       message: '미용실이 수정되었습니다.',
@@ -389,6 +461,10 @@ router.delete('/api/salons/:salonId', verifyToken, async (req, res) => {
     await salonService.deleteSalon(req.params.salonId, req.user.id);
 
     logger.info('미용실 삭제 성공', sanitizeData(logContext));
+
+    await activityService.recordActivity(req.user.id, 'salon_delete', {
+      salonId: req.params.salonId
+    });
 
     res.json({ message: '미용실이 삭제되었습니다.' });
   } catch (error) {

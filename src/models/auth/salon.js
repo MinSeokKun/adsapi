@@ -19,6 +19,16 @@ const Salon = sequelize.define('Salon', {
         },
         comment: '사업자등록번호 (10자리)'
     },
+    phone: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        comment: '미용실 연락처'
+    },
+    description: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: '미용실 소개 및 설명'
+    },
     created_at: {
         type: DataTypes.DATE,
         allowNull: false

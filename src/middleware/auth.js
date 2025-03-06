@@ -3,6 +3,31 @@ const { User } = require('../models');
 const tokenHandler = require('./tokenHandler');
 const logger = require('../config/winston');
 
+exports.optionalVerifyToken = async (req, res, next) => {
+  try {
+    const accessToken = req.cookies.jwt;
+
+    if (!accessToken) {
+      return next();
+    }
+
+    try {
+      const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+      const user = await User.findByPk(decoded.id);
+
+      if (user) {
+        req.user = user;
+      }
+
+    } catch (error) {
+      
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
 // JWT 토큰 검증 미들웨어
 exports.verifyToken = async (req, res, next) => {
   try {

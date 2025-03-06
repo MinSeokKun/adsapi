@@ -11,6 +11,7 @@ const Payment = require('./pay/payment');
 const Location = require('./auth/location');
 const AdLocation = require('./ad/adLocation');
 const Display = require('./auth/display');
+const UserActivity = require('./auth/userActivity');
 
 // 광고 관련 관계 설정
 Ad.hasMany(AdSchedule, {
@@ -106,6 +107,15 @@ Payment.belongsTo(User, {
   as: 'user'
 });
 
+User.hasMany(UserActivity, {
+  foreignKey: 'user_id',
+  as: 'activities'
+});
+UserActivity.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user'
+});
+
 Subscription.hasMany(Payment, {
   foreignKey: 'subscription_id',
   as: 'payments'
@@ -148,5 +158,6 @@ module.exports = {
   PaymentRefund,
   Subscription,
   SubscriptionPlan,
+  UserActivity,
   syncModels
 };
