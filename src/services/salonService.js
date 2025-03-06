@@ -29,6 +29,10 @@ class SalonService {
       {
         model: Display,
         as: 'displays'
+      },
+      {
+        model: User,
+        as: 'owner'
       }]
     });
     
@@ -44,11 +48,35 @@ class SalonService {
       include: [{
         model: Location,
         as: 'location'
+      },
+      {
+        model: Display,
+        as: 'displays'
+      },
+      {
+        model: User,
+        as: 'owner'
       }]
     });
 
     return salon;
   }
+
+  async getSalonName(salonId) {
+    const salonName = await Salon.findOne({
+      where: {
+        id: salonId
+      },
+      attributes: ['name']
+    });
+    
+    if (!salonName) {
+      throw new Error('미용실을 찾을 수 없습니다.');
+    }
+
+    return salonName.name; // salonName은 객체이므로 name 속성에 접근해야 합니다.
+  }
+  
 
   async adminGetSalonById(salonId) {
     const salon = await Salon.findOne({
@@ -81,6 +109,8 @@ class SalonService {
           name: salonData.name,
           business_hours: salonData.business_hours,
           business_number: salonData.business_number,
+          phone: salonData.phone,
+          description: salonData.description,
           created_at: new Date(),
           updated_at: new Date()
         }, { transaction: t });
@@ -106,7 +136,6 @@ class SalonService {
   
   async updateSalon(salonId, ownerId, salonData, locationData) {
     let transaction;
-    
     try {
       transaction = await sequelize.transaction();
       const salon = await Salon.findOne({
@@ -126,7 +155,7 @@ class SalonService {
         error.statusCode = 404;
         throw error;
       }
-  
+      
       if (salonData) {
         await salon.update(salonData, { transaction });
       }

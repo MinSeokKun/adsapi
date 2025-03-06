@@ -3,10 +3,11 @@ const router = express.Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const { User } = require('../../models');
-const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
+const { verifyToken, isAdmin, isSuperAdmin, optionalVerifyToken } = require('../../middleware/auth');
 const tokenHandler = require('../../middleware/tokenHandler');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
+const activityService = require('../../services/activityService');
 
 // Google OAuth 로그인
 router.get('/auth/google',
@@ -54,7 +55,13 @@ router.get('/auth/google/callback',
     }
 
     try {
-
+      // req.user 객체에서 사용자 ID 확인
+      if (!req.user || !req.user.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
+      
+      const userId = req.user.id; // 사용자 ID를 변수에 할당
+      
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
       
@@ -86,6 +93,12 @@ router.get('/auth/google/callback',
         ...logContext,
         finalRedirectUrl: redirectUrl
       }));
+
+      // 활동 기록 - 올바른 userId 사용
+      await activityService.recordActivity(userId, 'login', {
+        provider: 'google',
+        timestamp: new Date()
+      });
       
       res.redirect(redirectUrl);
     } catch (error) {
@@ -133,6 +146,13 @@ router.get('/auth/kakao/callback',
 
     try {
 
+      // req.user 객체에서 사용자 ID 확인
+      if (!req.user || !req.user.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
+      
+      const userId = req.user.id; // 사용자 ID를 변수에 할당
+
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
       
@@ -176,7 +196,11 @@ router.get('/auth/kakao/callback',
       });
       
 
-      logger.info('OAuth 인증 성공', sanitizeData(logContext));
+      // 활동 기록 - 올바른 userId 사용
+      await activityService.recordActivity(userId, 'login', {
+        provider: 'kakao',
+        timestamp: new Date()
+      });
       
       res.redirect('/');
     } catch (error) {
@@ -310,7 +334,7 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
   }
 });
 
-router.get('/auth/me', verifyToken, async (req, res) => {
+router.get('/auth/me', optionalVerifyToken, async (req, res) => {
   try {
     const userId = req.user?.id;
     const logContext = {
