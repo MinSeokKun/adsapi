@@ -100,7 +100,7 @@ router.get('/api/ads/:id', verifyToken, async (req, res) => {
   };
 
   try {
-    const ad = await adService.getAdForId(req.params.id);
+    const ad = await adService.getAdById(req.params.id);
 
     res.json({ ad });
   } catch (error) {
@@ -224,7 +224,7 @@ router.put('/api/ads/:id', verifyToken, async (req, res) => {
     const { title, is_active, schedules, media, targetLocations } = req.body;
     
     // 변경 전 광고 데이터 조회
-    const originalAd = await adService.getAdDetails(id);
+    const originalAd = await adService.getAdById(id);
     
     if (!originalAd) {
       logger.warn('존재하지 않는 광고 수정 시도', sanitizeData(logContext));
@@ -289,16 +289,27 @@ router.put('/api/ads/:id', verifyToken, async (req, res) => {
 
     // 4. 타겟 위치 변경 확인
     if (targetLocations !== undefined) {
-      const originalLocationIds = originalAd.targetLocations.map(loc => loc.id);
-      const newLocationIds = targetLocations.map(loc => loc.id || loc);
-      
-      const addedLocations = newLocationIds.filter(id => !originalLocationIds.includes(id));
-      const removedLocations = originalLocationIds.filter(id => !newLocationIds.includes(id));
-      
-      if (addedLocations.length > 0 || removedLocations.length > 0) {
+      // originalAd.targetLocations가 존재하는지 확인
+      if (originalAd.targetLocations) {
+        const originalLocationIds = originalAd.targetLocations.map(loc => loc.id);
+        const newLocationIds = targetLocations.map(loc => loc.id || loc);
+        
+        const addedLocations = newLocationIds.filter(id => !originalLocationIds.includes(id));
+        const removedLocations = originalLocationIds.filter(id => !newLocationIds.includes(id));
+        
+        if (addedLocations.length > 0 || removedLocations.length > 0) {
+          changes.targetLocations = {
+            added: addedLocations.length,
+            removed: removedLocations.length
+          };
+          changedFieldTypes.push('target_locations');
+        }
+      } else {
+        // targetLocations가 존재하고 originalAd.targetLocations가 없는 경우
+        // 모든 타겟 위치를 새로 추가된 것으로 처리
         changes.targetLocations = {
-          added: addedLocations.length,
-          removed: removedLocations.length
+          added: targetLocations.length,
+          removed: 0
         };
         changedFieldTypes.push('target_locations');
       }
@@ -313,7 +324,7 @@ router.put('/api/ads/:id', verifyToken, async (req, res) => {
         changeDetails: changes // 상세 변경 내역
       });
     }
-
+    console.log(updatedAd.media);
     res.json({
       message: '광고가 성공적으로 수정되었습니다',
       ad: updatedAd
@@ -337,8 +348,31 @@ router.put('/api/ads/:id', verifyToken, async (req, res) => {
 });
 
 // 스케줄 비교 헬퍼 함수
+// 스케줄 비교 헬퍼 함수
 function compareSchedules(originalSchedules, newSchedules) {
-  // ID 기준으로 비교
+  // 입력 유효성 검사
+  if (!originalSchedules || !newSchedules) {
+    return { changed: false, added: 0, removed: 0, modified: 0 };
+  }
+  
+  // newSchedules가 문자열 배열인 경우
+  if (newSchedules.length > 0 && typeof newSchedules[0] === 'string') {
+    // 원본 스케줄에서 시간만 추출
+    const originalTimes = originalSchedules.map(s => s.time);
+    
+    // 추가/제거된 시간 계산
+    const added = newSchedules.filter(time => !originalTimes.includes(time)).length;
+    const removed = originalTimes.filter(time => !newSchedules.includes(time)).length;
+    
+    return {
+      changed: added > 0 || removed > 0,
+      added,
+      removed,
+      modified: 0  // 시간만 비교하면 수정 여부를 판단하기 어려움
+    };
+  }
+  
+  // 원래 코드 (객체 배열 처리)
   const originalIds = originalSchedules.map(s => s.id).filter(id => id);
   const newIds = newSchedules.map(s => s.id).filter(id => id);
   

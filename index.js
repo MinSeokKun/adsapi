@@ -16,7 +16,7 @@ const loadRoutes = require('./src/utils/routeLoader');
 const { verifyToken, isSuperAdmin } = require('./src/middleware/auth');
 const { requestLogger, errorLogger } = require('./src/middleware/logger');
 const logger = require('./src/config/winston');
-
+const axios = require('axios');
 const app = express();
 
 // Security
@@ -30,14 +30,16 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
     ? [
         process.env.FRONTEND_URL,
-        'https://ads-web-seven.vercel.app'
+        'https://ads-web-seven.vercel.app',
+        'https://ads-web-next.vercel.app'
       ]
-    : [
+      : [
         'http://localhost:3000',
         'http://localhost:3002',
         'http://localhost:5173',
         'http://182.220.6.227:3000',
         'http://192.168.0.42:3000',
+        'https://ads-web-next.vercel.app',
         'https://ads-web-seven.vercel.app',
         'https://2576-182-220-6-227.ngrok-free.app',
         /^https:\/\/[a-zA-Z0-9-]+\.ngrok-free\.app$/ // ngrok URL 패턴 매칭
@@ -171,6 +173,76 @@ app.use(errorLogger);
 
 // 모든 라우터 자동 로드
 loadRoutes(app, path.join(__dirname, 'src', 'routes'));
+
+app.get('/api/proxy-image', async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ error: '이미지 URL이 필요합니다.' });
+    }
+
+    // 이미지 요청
+    const response = await axios({
+      url: imageUrl,
+      method: 'GET',
+      responseType: 'arraybuffer'
+    });
+
+    // CORS 및 리소스 정책 헤더 설정
+    res.set({
+      'Content-Type': response.headers['content-type'] || 'image/png',
+      'Cache-Control': 'public, max-age=86400',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS'
+    });
+    
+    // 이미지 데이터 전송
+    res.send(response.data);
+    
+  } catch (error) {
+    // 오류 처리 로직
+    res.status(500).json({ 
+      error: '이미지를 가져오는데 실패했습니다.',
+      details: error.message 
+    });
+  }
+});
+
+// 비디오 프록시 라우트
+app.get('/api/proxy-video', async (req, res) => {
+  try {
+    const videoUrl = req.query.url;
+    
+    if (!videoUrl) {
+      return res.status(400).json({ error: '비디오 URL이 필요합니다.' });
+    }
+
+    // 비디오 요청 (스트림 방식 사용)
+    const response = await axios({
+      url: videoUrl,
+      method: 'GET',
+      responseType: 'stream'
+    });
+
+    // 응답 헤더 설정
+    res.set('Content-Type', response.headers['content-type'] || 'video/mp4');
+    res.set('Content-Length', response.headers['content-length']);
+    res.set('Accept-Ranges', 'bytes');
+    res.set('Cache-Control', 'public, max-age=86400');
+    
+    // 비디오 스트림 파이프
+    response.data.pipe(res);
+    
+  } catch (error) {
+    
+    res.status(500).json({ 
+      error: '비디오를 가져오는데 실패했습니다.',
+      details: error.message 
+    });
+  }
+});
 
 // 모델 동기화 후 서버 시작
 const startServer = async () => {
