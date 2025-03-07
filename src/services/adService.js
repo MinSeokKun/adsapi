@@ -243,12 +243,9 @@ async updateAd(id, { title, is_active, schedules, media, targetLocations }, logC
 /**
  * 광고 미디어 동기화
  */
-async syncAdMedia(adId, mediaIds, transaction, logContext = {}) {
-  logger.info('광고 미디어 동기화', sanitizeData({
-    ...logContext,
-    adId,
-    mediaIds
-  }));
+async syncAdMedia(adId, mediaData, transaction) {
+  // mediaData가 ID 배열인지 객체 배열인지 확인
+  const mediaIds = mediaData.map(media => typeof media === 'object' ? media.id : media);
   
   // 현재 광고에 연결된 미디어 가져오기
   const existingMedia = await AdMedia.findAll({
@@ -259,40 +256,38 @@ async syncAdMedia(adId, mediaIds, transaction, logContext = {}) {
   
   const existingMediaIds = existingMedia.map(m => m.id);
   
-  // 삭제할 미디어: 기존에 있지만 요청에 없는 ID
-  const mediaToDelete = existingMediaIds.filter(mediaId => 
-    !mediaIds.includes(mediaId)
-  );
+  // 삭제할 미디어
+  const mediaToDelete = existingMediaIds.filter(id => !mediaIds.includes(id));
+  
+  // 추가할 미디어
+  const mediaToAdd = mediaIds.filter(id => !existingMediaIds.includes(id));
   
   // 미디어 삭제
   if (mediaToDelete.length > 0) {
-    logger.info('삭제할 미디어', sanitizeData({
-      ...logContext, 
-      mediaToDelete
-    }));
-    
     await AdMedia.destroy({
       where: { 
-        id: mediaToDelete,
+        media_id: mediaToDelete,
         ad_id: adId
       },
       transaction
     });
   }
   
-  // 미디어 순서 업데이트 등 추가 로직이 필요하면 여기에 구현
+  // 새 미디어 추가
+  for (const mediaId of mediaToAdd) {
+    await AdMedia.create({
+      ad_id: adId,
+      id: mediaId
+    }, { transaction });
+  }
+  
   return true;
 }
 
 /**
  * 광고 스케줄 동기화
  */
-async syncAdSchedules(adId, schedules, transaction, logContext = {}) {
-  logger.info('광고 스케줄 동기화', sanitizeData({
-    ...logContext,
-    adId,
-    schedules
-  }));
+async syncAdSchedules(adId, schedules, transaction) {
   
   // 기존 스케줄 삭제
   await AdSchedule.destroy({
@@ -316,12 +311,7 @@ async syncAdSchedules(adId, schedules, transaction, logContext = {}) {
 /**
  * 광고 타겟 위치 동기화
  */
-async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
-  logger.info('광고 타겟 위치 동기화', sanitizeData({
-    ...logContext,
-    adId,
-    targetLocationCount: targetLocations?.length
-  }));
+async syncAdLocations(adId, targetLocations, transaction) {
   
   // 기존 타겟 위치 삭제
   await AdLocation.destroy({
@@ -447,7 +437,7 @@ async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
   }
 
   // ID로 광고 조회
-  async getAdForId(id) {
+  async getAdById(id) {
     try {
       const ad = Ad.findOne({
         where: { id },
@@ -457,7 +447,7 @@ async syncAdLocations(adId, targetLocations, transaction, logContext = {}) {
         }, {
           model: AdSchedule,
           required: false,
-          attributes: ['time']
+          attributes: ['id', 'time']
         }, {
           model: AdLocation
         }]
