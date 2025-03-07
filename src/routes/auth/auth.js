@@ -43,12 +43,18 @@ router.get('/auth/google/callback',
     };
 
     let redirectUrl = process.env.FRONTEND_URL; // 기본값
+    let returnPath = '/dashboard'; // 기본 경로
 
     try {
-      // state 파라미터에서 redirect_url 추출
-      const stateData = JSON.parse(decodeURIComponent(req.query.state));
-      if (stateData.redirectUrl) {
-        redirectUrl = stateData.redirectUrl;
+      // state 파라미터에서 정보 추출
+      if (req.query.state) {
+        const stateData = JSON.parse(decodeURIComponent(req.query.state));
+        if (stateData.redirectUrl) {
+          redirectUrl = stateData.redirectUrl;
+        }
+        if (stateData.returnUrl) {
+          returnPath = stateData.returnUrl; // 상대 경로를 저장
+        }
       }
     } catch (e) {
       logger.error('State 파싱 실패', { error: e });
@@ -94,13 +100,23 @@ router.get('/auth/google/callback',
         finalRedirectUrl: redirectUrl
       }));
 
+      // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
+      const finalRedirectUrl = redirectUrl.endsWith('/') 
+        ? `${redirectUrl}${returnPath.startsWith('/') ? returnPath.slice(1) : returnPath}`
+        : `${redirectUrl}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`;
+
+      logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
+        ...logContext,
+        finalRedirectUrl
+      }));
+
       // 활동 기록 - 올바른 userId 사용
       await activityService.recordActivity(userId, 'login', {
         provider: 'google',
         timestamp: new Date()
       });
       
-      res.redirect(redirectUrl);
+      res.redirect(finalRedirectUrl);
     } catch (error) {
       logger.error('OAuth 콜백 처리 실패', sanitizeData({
         ...logContext,
@@ -143,6 +159,24 @@ router.get('/auth/kakao/callback',
       userId: req.user?.id,
       path: req.path
     };
+
+    let redirectUrl = process.env.FRONTEND_URL; // 기본값
+    let returnPath = '/dashboard'; // 기본 경로
+
+    try {
+      // state 파라미터에서 정보 추출
+      if (req.query.state) {
+        const stateData = JSON.parse(decodeURIComponent(req.query.state));
+        if (stateData.redirectUrl) {
+          redirectUrl = stateData.redirectUrl;
+        }
+        if (stateData.returnUrl) {
+          returnPath = stateData.returnUrl; // 상대 경로를 저장
+        }
+      }
+    } catch (e) {
+      logger.error('State 파싱 실패', { error: e });
+    }
 
     try {
 
@@ -196,13 +230,23 @@ router.get('/auth/kakao/callback',
       });
       
 
+      // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
+      const finalRedirectUrl = redirectUrl.endsWith('/') 
+        ? `${redirectUrl}${returnPath.startsWith('/') ? returnPath.slice(1) : returnPath}`
+        : `${redirectUrl}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`;
+
+      logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
+        ...logContext,
+        finalRedirectUrl
+      }));
+
       // 활동 기록 - 올바른 userId 사용
       await activityService.recordActivity(userId, 'login', {
-        provider: 'kakao',
+        provider: 'google',
         timestamp: new Date()
       });
       
-      res.redirect('/');
+      res.redirect(finalRedirectUrl);
     } catch (error) {
       logger.error('OAuth 콜백 처리 실패', sanitizeData({
         ...logContext,
