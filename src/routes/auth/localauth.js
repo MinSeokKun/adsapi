@@ -1,16 +1,7 @@
 const express = require('express');
 const router = express.Router();
-// const nodemailer = require('nodemailer');
 const userService = require('../../services/userService');
-
-// 이메일 전송 설정
-// const transporter = nodemailer.createTransport({
-//   service: 'gmail',
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASSWORD
-//   }
-// });
+const { User } = require('../../models');
 
 router.post('/auth/signup', async (req, res) => {
   const logContext = {
@@ -41,29 +32,45 @@ router.post('/auth/login', async (req, res) => {
   try {
     const { user, tokens } = await userService.login(req.body, logContext);
     
-    // Access Token 쿠키 설정
-    res.cookie('jwt', tokens.accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'None',
-      maxAge: 24 * 3600000
-    });
-
-    // Refresh Token 쿠키 설정
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'None',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
+    // 토큰을 응답 본문에 포함시킴
     res.json({ 
       message: '로그인 성공',
-      user
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
     });
   } catch (error) {
     res.status(error.message.includes('이메일 또는 비밀번호') ? 401 : 500)
         .json({ message: error.message || '서버 오류' });
+  }
+});
+
+// 토큰 갱신 엔드포인트
+router.post('/auth/refresh-token', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    // 토큰 검증
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findOne({ 
+      where: { id: decoded.id, refreshToken }
+    });
+    
+    if (!user) throw new Error('Invalid token');
+    
+    // 새 토큰 생성
+    const newAccessToken = tokenHandler.generateAccessToken(user);
+    const newRefreshToken = tokenHandler.generateRefreshToken(user);
+    
+    // 이전 리프레시 토큰 무효화
+    await user.update({ refreshToken: newRefreshToken });
+    
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    res.status(401).json({ message: '토큰이 유효하지 않습니다.' });
   }
 });
 
