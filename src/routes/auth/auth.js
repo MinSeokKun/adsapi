@@ -79,31 +79,15 @@ router.get('/auth/google/callback',
         { where: { id: req.user.id } }
       );
 
-      // Access Token 쿠키 설정
-      res.cookie('jwt', accessToken, {
-        httpOnly: true,
-        secure: true,  // ngrok은 https를 사용하므로 필요
-        sameSite: 'None',  // cross-site 쿠키 허용
-        maxAge: 24 * 3600000
-      });
-
-      // Refresh Token 쿠키 설정
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: true,  // ngrok은 https를 사용하므로 필요
-        sameSite: 'None',  // cross-site 쿠키 허용
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-
-      logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
-        ...logContext,
-        finalRedirectUrl: redirectUrl
-      }));
+      // 토큰을 URL 파라미터로 전달 (보안상 좋은 방법은 아니지만 서드파티 쿠키 문제를 우회)
+      const finalPath = returnPath.includes('?') ? 
+        `${returnPath}&accessToken=${accessToken}&refreshToken=${refreshToken}` : 
+        `${returnPath}?accessToken=${accessToken}&refreshToken=${refreshToken}`;
 
       // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
       const finalRedirectUrl = redirectUrl.endsWith('/') 
-        ? `${redirectUrl}${returnPath.startsWith('/') ? returnPath.slice(1) : returnPath}`
-        : `${redirectUrl}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`;
+        ? `${redirectUrl}${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
+        : `${redirectUrl}${finalPath.startsWith('/') ? finalPath : `/${finalPath}`}`;
 
       logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
         ...logContext,
@@ -132,7 +116,7 @@ router.get('/auth/google/callback',
   }
 );
 
-// Kakao OAuth 로그인
+// Kakao OAuth 로그인 (Google과 유사하게 수정)
 router.get('/auth/kakao',
   (req, res, next) => {
     const logContext = {
@@ -149,7 +133,7 @@ router.get('/auth/kakao',
   })
 );
 
-// Kakao OAuth 콜백
+// Kakao OAuth 콜백 (Google과 유사하게 수정)
 router.get('/auth/kakao/callback',
   passport.authenticate('kakao', { failureRedirect: '/login' }),
   async (req, res) => {
@@ -179,7 +163,6 @@ router.get('/auth/kakao/callback',
     }
 
     try {
-
       // req.user 객체에서 사용자 ID 확인
       if (!req.user || !req.user.id) {
         throw new Error('사용자 정보를 찾을 수 없습니다');
@@ -198,42 +181,15 @@ router.get('/auth/kakao/callback',
         { where: { id: req.user.id } }
       );
 
-      // res.cookie('jwt', accessToken, {
-      //   httpOnly: true,
-      //   secure: process.env.NODE_ENV === 'production',
-      //   sameSite: 'strict',
-      //   maxAge: 24 * 60 * 60 * 1000
-      // });
-      
-      // res.cookie('refreshToken', refreshToken, {
-      //   httpOnly: true,
-      //   secure: process.env.NODE_ENV === 'production',
-      //   sameSite: 'strict',
-      //   path: '/auth/refresh-token',
-      //   maxAge: 7 * 24 * 60 * 60 * 1000
-      // });
-
-      // Access Token 쿠키 설정
-      res.cookie('jwt', accessToken, {
-        httpOnly: true,
-        secure: true,  // ngrok은 https를 사용하므로 필요
-        sameSite: 'None',  // cross-site 쿠키 허용
-        maxAge: 24 * 3600000
-      });
-
-      // Refresh Token 쿠키 설정
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: true,  // ngrok은 https를 사용하므로 필요
-        sameSite: 'None',  // cross-site 쿠키 허용
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-      
+      // 토큰을 URL 파라미터로 전달
+      const finalPath = returnPath.includes('?') ? 
+        `${returnPath}&accessToken=${accessToken}&refreshToken=${refreshToken}` : 
+        `${returnPath}?accessToken=${accessToken}&refreshToken=${refreshToken}`;
 
       // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
       const finalRedirectUrl = redirectUrl.endsWith('/') 
-        ? `${redirectUrl}${returnPath.startsWith('/') ? returnPath.slice(1) : returnPath}`
-        : `${redirectUrl}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`;
+        ? `${redirectUrl}${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
+        : `${redirectUrl}${finalPath.startsWith('/') ? finalPath : `/${finalPath}`}`;
 
       logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
         ...logContext,
@@ -242,7 +198,7 @@ router.get('/auth/kakao/callback',
 
       // 활동 기록 - 올바른 userId 사용
       await activityService.recordActivity(userId, 'login', {
-        provider: 'google',
+        provider: 'kakao',
         timestamp: new Date()
       });
       
@@ -263,60 +219,32 @@ router.get('/auth/kakao/callback',
 );
 
 // 로그아웃
-router.get('/auth/logout', (req, res) => {
+router.post('/auth/logout', verifyToken, async (req, res) => {
   const logContext = {
     requestId: req.id,
     userId: req.user?.id,
     path: req.path
   };
 
-  req.logout((error) => {
-    if (error) {
-      logger.error('로그아웃 처리 실패', sanitizeData({
-        ...logContext,
-        error: {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-        }
-      }));
-      return res.status(500).json({ message: '로그아웃 중 오류가 발생했습니다.' });
-    }
-
-    res.clearCookie('jwt', {
-      httpOnly: true,
-      secure: true,  // ngrok 사용시 필요
-      sameSite: 'None'  // cross-site 상황이므로 None으로 설정
-    });
-    
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'None',
-      // path: '/auth/refresh-token'
-    });
-
+  try {
     if (req.user?.id) {
-      tokenHandler.invalidateTokens(req.user.id)
-        .then(() => {
-          logger.info('토큰 무효화 성공', sanitizeData(logContext));
-        })
-        .catch(error => {
-          logger.error('토큰 무효화 실패', sanitizeData({
-            ...logContext,
-            error: {
-              name: error.name,
-              message: error.message,
-              stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-            }
-          }));
-        });
+      await tokenHandler.invalidateTokens(req.user.id);
+      logger.info('토큰 무효화 성공', sanitizeData(logContext));
     }
 
-    logger.info('로그아웃 성공', sanitizeData(logContext));
-    res.redirect('/');
-  });
+    res.json({ message: '로그아웃 되었습니다.' });
+  } catch (error) {
+    logger.error('로그아웃 처리 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    res.status(500).json({ message: '로그아웃 중 오류가 발생했습니다.' });
+  }
 });
 
 // 사용자 권한 업데이트
@@ -388,7 +316,7 @@ router.get('/auth/me', optionalVerifyToken, async (req, res) => {
     };
 
     if (!userId) {
-      return res.json({ message: '사용자를 찾을 수 없습니다.' });
+      return res.status(401).json({ message: '인증이 필요합니다.' });
     }
     
     // 사용자 정보 조회
