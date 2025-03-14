@@ -6,24 +6,78 @@ const logger = require('../config/winston');
 exports.optionalVerifyToken = async (req, res, next) => {
   try {
     const accessToken = req.cookies.jwt;
-
+    const refreshToken = req.cookies.refreshToken;
+    
+    console.log('accessToken : ', accessToken);
+    
     if (!accessToken) {
       return next();
     }
 
     try {
+      // access token 검증
       const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
       const user = await User.findByPk(decoded.id);
 
       if (user) {
         req.user = user;
       }
-
     } catch (error) {
-      
+      // access token이 만료된 경우
+      if (error.name === 'TokenExpiredError' && refreshToken) {
+        console.log('액세스 토큰 만료, 리프레시 토큰으로 갱신 시도');
+        
+        try {
+          // refresh token 검증
+          const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+          const user = await User.findByPk(decoded.id);
+
+          if (!user) {
+            console.log('리프레시 토큰 검증 실패: 존재하지 않는 사용자');
+            return next();
+          }
+
+          // DB에 저장된 refresh token과 비교
+          if (user.refreshToken !== refreshToken) {
+            console.log('유효하지 않은 리프레시 토큰');
+            return next();
+          }
+
+          // 새로운 토큰 발급
+          const newAccessToken = tokenHandler.generateAccessToken(user);
+          const newRefreshToken = tokenHandler.generateRefreshToken(user);
+          
+          console.log('새로운 토큰 발급 성공', { userId: user.id });
+          
+          // refresh token 업데이트
+          await user.update({ refreshToken: newRefreshToken });
+
+          // 새로운 토큰을 쿠키에 설정
+          res.cookie('jwt', newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000 // 24시간
+          });
+
+          res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7일
+          });
+
+          req.user = user;
+        } catch (refreshError) {
+          console.log('리프레시 토큰 검증 실패', refreshError.name);
+        }
+      } else {
+        console.log('토큰 검증 실패', error.name);
+      }
     }
     next();
   } catch (error) {
+    console.error('미들웨어 전체 오류:', error);
     next();
   }
 };
