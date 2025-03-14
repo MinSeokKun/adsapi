@@ -7,13 +7,13 @@ exports.optionalVerifyToken = async (req, res, next) => {
   try {
     // 헤더에서 토큰 추출
     const authHeader = req.headers.authorization;
+    console.log('authHeader : ', authHeader);
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next();
     }
 
     const accessToken = authHeader.split(' ')[1];
-    
-    // console.log('accessToken : ', accessToken);
+    console.log('accessToken : ', accessToken);
     
     if (!accessToken) {
       return next();
