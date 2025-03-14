@@ -348,7 +348,6 @@ router.put('/api/ads/:id', verifyToken, async (req, res) => {
 });
 
 // 스케줄 비교 헬퍼 함수
-// 스케줄 비교 헬퍼 함수
 function compareSchedules(originalSchedules, newSchedules) {
   // 입력 유효성 검사
   if (!originalSchedules || !newSchedules) {
