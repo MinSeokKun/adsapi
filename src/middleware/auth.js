@@ -28,11 +28,25 @@ exports.optionalVerifyToken = async (req, res, next) => {
         req.user = user;
       }
     } catch (error) {
-      logger.error('토큰 검증 실패', error.name);
+      logger.error('토큰 검증 실패', {
+        requestId: req.id,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      });
     }
     next();
   } catch (error) {
-    logger.error('미들웨어 전체 오류:', error);
+    logger.error('미들웨어 전체 오류:', {
+      requestId: req.id,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    });
     next();
   }
 };
@@ -83,7 +97,11 @@ exports.verifyToken = async (req, res, next) => {
     } catch (error) {
       logger.warn('토큰 검증 실패', {
         requestId: req.id,
-        error: error.name
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
       });
       return res.status(401).json({ 
         message: '유효하지 않은 토큰입니다.', 
