@@ -7,13 +7,13 @@ exports.optionalVerifyToken = async (req, res, next) => {
   try {
     // 헤더에서 토큰 추출
     const authHeader = req.headers.authorization;
-    console.log('authHeader : ', authHeader);
+    // console.log('authHeader : ', authHeader);
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next();
     }
 
     const accessToken = authHeader.split(' ')[1];
-    console.log('accessToken : ', accessToken);
+    // console.log('accessToken : ', accessToken);
     
     if (!accessToken) {
       return next();
@@ -67,11 +67,6 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     const accessToken = authHeader.split(' ')[1];
-
-    // logger.info('토큰 검증 시작', {
-    //   requestId: req.id,
-    //   hasAccessToken: !!accessToken,
-    // });
     
     try {
       // access token 검증
@@ -86,12 +81,6 @@ exports.verifyToken = async (req, res, next) => {
         return res.status(401).json({ message: '유저를 찾을 수 없습니다.' });
       }
 
-      // logger.info('토큰 검증 성공', {
-      //   requestId: req.id,
-      //   userId: user.id,
-      //   userRole: user.role
-      // });
-      
       req.user = user;
       next();
     } catch (error) {
@@ -123,12 +112,6 @@ exports.verifyToken = async (req, res, next) => {
 
 // 관리자 권한 체크 미들웨어
 exports.isAdmin = async (req, res, next) => {
-  // logger.info('관리자 권한 확인', {
-  //   requestId: req.id,
-  //   userId: req.user?.id,
-  //   userRole: req.user?.role,
-  //   path: req.path
-  // });
   if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
     logger.warn('관리자 권한 없음', {
       requestId: req.id,
@@ -143,12 +126,6 @@ exports.isAdmin = async (req, res, next) => {
 
 // 슈퍼관리자 권한 체크 미들웨어
 exports.isSuperAdmin = async (req, res, next) => {
-  // logger.info('슈퍼관리자 권한 확인', {
-  //   requestId: req.id,
-  //   userId: req.user?.id,
-  //   userRole: req.user?.role,
-  //   path: req.path
-  // });
   if (!req.user || req.user.role !== 'superadmin') {
     logger.warn('슈퍼관리자 권한 없음', {
       requestId: req.id,
