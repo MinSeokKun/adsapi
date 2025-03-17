@@ -171,15 +171,15 @@ router.post('/api/ads',
     };
 
   try {
-    const { title, schedules } = req.body;
-    const ad = await adService.createAd(title, schedules, req.files);
+    // const { title, schedules } = req.body;
+    const ad = await adService.createAd(req.body);
 
 
     logger.info('광고 등록 완료', sanitizeData({
       ...logContext,
       adId: ad.id,
       mediaCount: ad.media?.length || 0,
-      scheduleCount: schedules.length || 0
+      scheduleCount: ad.adSchedules?.length || 0
     }));
 
     await activityService.recordActivity(req.user?.id, 'ad_create', {
