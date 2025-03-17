@@ -271,7 +271,7 @@ async syncAdMedia(adId, mediaData, transaction) {
   if (mediaToDelete.length > 0) {
     await AdMedia.destroy({
       where: { 
-        media_id: mediaToDelete,
+        id: mediaToDelete,
         ad_id: adId
       },
       transaction
