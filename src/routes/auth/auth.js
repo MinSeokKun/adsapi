@@ -325,7 +325,7 @@ router.get('/auth/me', optionalVerifyToken, async (req, res) => {
       attributes: ['id', 'email', 'name', 'role', 'provider', 'profileImage', 'lastLogin'] 
     });
 
-    console.log(user);
+    // console.log(user);
 
     if (!user) {
       return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
