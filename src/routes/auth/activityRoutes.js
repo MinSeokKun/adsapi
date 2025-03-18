@@ -1,7 +1,7 @@
 // routes/activityRoutes.js
 const express = require('express');
 const router = express.Router();
-const activityService = require('../../services/activityService');
+const activityService = require('../../services/userActivityService');
 const { verifyToken, isAdmin } = require('../../middleware/auth');
 
 // 최근 활동 목록 조회 (관리자 대시보드용)

@@ -7,7 +7,8 @@ const { verifyToken, isAdmin, isSuperAdmin, optionalVerifyToken } = require('../
 const tokenHandler = require('../../middleware/tokenHandler');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
-const activityService = require('../../services/activityService');
+const activityService = require('../../services/userActivityService');
+const { ACTIVITY_TYPES } = require('../../middleware/activityMiddleware');
 const { setCookies, clearCookies } = require('../../middleware/cookieHandler');
 
 // Google OAuth 로그인
@@ -98,9 +99,11 @@ router.get('/auth/google/callback',
       }));
 
       // 활동 기록
-      await activityService.recordActivity(userId, 'login', {
+      await activityService.recordActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
         provider: 'google',
-        timestamp: new Date()
+        timestamp: new Date(),
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
       });
       
       res.redirect(finalRedirectUrl);
@@ -201,9 +204,11 @@ router.get('/auth/kakao/callback',
       }));
 
       // 활동 기록
-      await activityService.recordActivity(userId, 'login', {
-        provider: 'google',
-        timestamp: new Date()
+      await activityService.recordActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
+        provider: 'kakao',
+        timestamp: new Date(),
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
       });
       
       res.redirect(finalRedirectUrl);

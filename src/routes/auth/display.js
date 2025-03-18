@@ -5,7 +5,7 @@ const DisplayService = require('../../services/displayService');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const { verifyToken } = require('../../middleware/auth');
-const activityService = require('../../services/activityService');
+const activityService = require('../../services/userActivityService');
 
 // 새 디스플레이 등록 (미용실 관리자만 접근 가능)
 router.post('/api/displays', verifyToken, async (req, res) => {
