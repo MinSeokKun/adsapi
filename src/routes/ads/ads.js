@@ -7,7 +7,7 @@ const { sanitizeData } = require('../../utils/sanitizer');
 const adService = require('../../services/adService');
 const displayAuth = require('../../middleware/displayAuth');
 const mediaService = require('../../services/mediaService');
-const activityService = require('../../services/activityService');
+const activityService = require('../../services/userActivityService');
 
 // 광고 조회
 router.get('/api/ads', 

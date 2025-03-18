@@ -2,7 +2,13 @@ const express = require('express');
 const router = express.Router();
 const userService = require('../../services/userService');
 const { User } = require('../../models');
-const { setCookies } = require('../../middleware/cookieHandler');
+const logger = require('../../config/winston');
+const { sanitizeData } = require('../../utils/sanitizer');
+const { setCookies, clearCookies } = require('../../middleware/cookieHandler');
+const jwt = require('jsonwebtoken');
+const tokenHandler = require('../../middleware/tokenHandler');
+const activityService = require('../../services/userActivityService');
+const { ACTIVITY_TYPES } = require('../../middleware/activityMiddleware');
 
 router.post('/auth/signup', async (req, res) => {
   const logContext = {
@@ -35,6 +41,14 @@ router.post('/auth/login', async (req, res) => {
     // 쿠키 설정 추가
     setCookies(res, tokens.accessToken, tokens.refreshToken);
     
+    // 활동 기록
+    await activityService.recordActivity(user.id, ACTIVITY_TYPES.USER_LOGIN, {
+      provider: 'local',
+      timestamp: new Date(),
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+
     // 토큰을 응답 본문에 포함시킴
     res.json({ 
       message: '로그인 성공',
@@ -48,8 +62,20 @@ router.post('/auth/login', async (req, res) => {
 
 // 토큰 갱신 엔드포인트
 router.post('/auth/refresh-token', async (req, res) => {
+  const logContext = {
+    requestId: req.id,
+    ip: req.ip,
+    path: req.path
+  };
+
   try {
-    const { refreshToken } = req.body;
+    // 쿠키에서 refreshToken 가져오기
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (!refreshToken) {
+      logger.warn('리프레시 토큰 없음', sanitizeData(logContext));
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
     
     // 토큰 검증
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
@@ -57,7 +83,10 @@ router.post('/auth/refresh-token', async (req, res) => {
       where: { id: decoded.id, refreshToken }
     });
     
-    if (!user) throw new Error('Invalid token');
+    if (!user) {
+      logger.warn('유효하지 않은 리프레시 토큰', sanitizeData(logContext));
+      return res.status(401).json({ message: '인증이 필요합니다.' });
+    }
     
     // 새 토큰 생성
     const newAccessToken = tokenHandler.generateAccessToken(user);
@@ -66,11 +95,35 @@ router.post('/auth/refresh-token', async (req, res) => {
     // 이전 리프레시 토큰 무효화
     await user.update({ refreshToken: newRefreshToken });
     
+    // 쿠키에 새 토큰 설정
+    setCookies(res, newAccessToken, newRefreshToken);
+    
+    logger.info('토큰 갱신 성공', sanitizeData({
+      ...logContext,
+      userId: user.id
+    }));
+    
     res.json({
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken
+      message: '토큰이 갱신되었습니다.',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
     });
   } catch (error) {
+    logger.error('토큰 갱신 실패', sanitizeData({
+      ...logContext,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      }
+    }));
+    
+    // 토큰 오류 시 쿠키 제거
+    clearCookies(res);
     res.status(401).json({ message: '토큰이 유효하지 않습니다.' });
   }
 });

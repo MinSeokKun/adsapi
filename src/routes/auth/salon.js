@@ -5,7 +5,7 @@ const { verifyToken, isAdmin, isSuperAdmin } = require('../../middleware/auth');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const salonService = require('../../services/salonService');
-const activityService = require('../../services/activityService');
+const activityService = require('../../services/userActivityService');
 
 // 개인 미용실 조회
 router.get('/api/salons', verifyToken, async (req, res) => {
