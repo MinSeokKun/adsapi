@@ -7,7 +7,7 @@ const setCookies = (res, accessToken, refreshToken) => {
   const commonOptions = {
     httpOnly: true,
     secure: isProduction, // 개발환경에서는 false, 배포환경에서는 true
-    sameSite: isProduction ? 'strict' : 'lax', // 더 안전하게 설정
+    sameSite: isProduction ? 'lax' : 'lax', // 더 안전하게 설정
   };
   
   // 도메인 옵션 (개발환경에서는 도메인 설정 없음)
@@ -30,12 +30,12 @@ const setCookies = (res, accessToken, refreshToken) => {
   
 // 쿠키 제거 함수
 const clearCookies = (res) => {
-  res.clearCookie('accessToken', {
-    domain: process.env.COOKIE_DOMAIN
-  });
-  res.clearCookie('refreshToken', {
-    domain: process.env.COOKIE_DOMAIN
-  });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieDomain = isProduction ? process.env.COOKIE_DOMAIN : undefined;
+  const options = cookieDomain ? { domain: cookieDomain } : {};
+  
+  res.clearCookie('accessToken', options);
+  res.clearCookie('refreshToken', options);
 };
   
 module.exports = { setCookies, clearCookies };
