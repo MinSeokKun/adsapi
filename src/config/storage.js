@@ -34,15 +34,18 @@ class NCloudStorage {
    * @returns {Promise<string>} 업로드된 파일의 URL
    */
   async uploadFile(file, folder, ...subFolders) {
+    // 환경에 따라 기본 경로 설정
+    const baseFolder = process.env.NODE_ENV === 'production' ? '' : 'test';
+    
     // 폴더 경로 생성 (subFolders가 비어있으면 빈 문자열 반환)
     const subFolderPath = subFolders
       .filter(folder => folder) // 빈 문자열, null, undefined 제거
       .join('/');
     
-    // 최종 폴더 경로 생성
-    const folderPath = subFolderPath 
-      ? `${folder}/${subFolderPath}/`
-      : `${folder}/`;
+    // 최종 폴더 경로 생성 (개발 환경이면 test/ 접두사 추가)
+    const folderPath = baseFolder
+      ? `${baseFolder}/${folder}/${subFolderPath ? subFolderPath + '/' : ''}`
+      : `${folder}/${subFolderPath ? subFolderPath + '/' : ''}`;
     
     // 파일명 생성 (timestamp-원본파일명)
     const fileName = `${folderPath}${Date.now()}-${file.originalname}`;

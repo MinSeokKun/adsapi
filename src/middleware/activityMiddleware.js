@@ -7,7 +7,7 @@ const userActivityService = require('../services/userActivityService');
  * @returns {Function} Express 미들웨어
  */
 exports.logActivity = (activityType, getDetailsFunction = null) => {
-  return async (req, res, next) => {
+  return (req, res, next) => {
     // 원래 응답 메서드를 저장
     const originalSend = res.send;
     const originalJson = res.json;
@@ -34,23 +34,27 @@ exports.logActivity = (activityType, getDetailsFunction = null) => {
 
     // 응답 메서드 오버라이드
     res.send = function(body) {
+      const result = originalSend.call(this, body);
       logIfSuccess();
-      return originalSend.call(this, body);
+      return result;
     };
 
     res.json = function(body) {
+      const result = originalJson.call(this, body);
       logIfSuccess();
-      return originalJson.call(this, body);
+      return result;
     };
 
     res.end = function(chunk, encoding) {
+      const result = originalEnd.call(this, chunk, encoding);
       logIfSuccess();
-      return originalEnd.call(this, chunk, encoding);
+      return result;
     };
 
     next();
   };
 };
+
 
 /**
  * 로그인 활동을 로깅하는 미들웨어
