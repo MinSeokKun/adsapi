@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userService = require('../../services/userService');
 const { User } = require('../../models');
+const { setCookies } = require('../../middleware/cookieHandler');
 
 router.post('/auth/signup', async (req, res) => {
   const logContext = {
@@ -31,13 +32,13 @@ router.post('/auth/login', async (req, res) => {
 
   try {
     const { user, tokens } = await userService.login(req.body, logContext);
+    // 쿠키 설정 추가
+    setCookies(res, tokens.accessToken, tokens.refreshToken);
     
     // 토큰을 응답 본문에 포함시킴
     res.json({ 
       message: '로그인 성공',
-      user,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
+      user
     });
   } catch (error) {
     res.status(error.message.includes('이메일 또는 비밀번호') ? 401 : 500)

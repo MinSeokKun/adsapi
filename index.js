@@ -32,7 +32,8 @@ const corsOptions = {
         process.env.FRONTEND_URL,
         'https://ads-web-seven.vercel.app',
         'http://localhost:3000',
-        'https://ads-web-next.vercel.app'
+        'https://ads-web-next.vercel.app',
+        'https://app.cocoh.kr',
       ]
       : [
         'http://localhost:3000',

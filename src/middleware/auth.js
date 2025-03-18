@@ -5,17 +5,11 @@ const logger = require('../config/winston');
 
 exports.optionalVerifyToken = async (req, res, next) => {
   try {
-    // 헤더에서 토큰 추출
-    const authHeader = req.headers.authorization;
-    // console.log('authHeader : ', authHeader);
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
-    }
-
-    const accessToken = authHeader.split(' ')[1];
-    // console.log('accessToken : ', accessToken);
+    // 쿠키에서 토큰 추출
+    const accessToken = req.cookies.accessToken;
     
     if (!accessToken) {
+      req.user = null;
       return next();
     }
 
@@ -28,14 +22,22 @@ exports.optionalVerifyToken = async (req, res, next) => {
         req.user = user;
       }
     } catch (error) {
-      logger.error('토큰 검증 실패', {
-        requestId: req.id,
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      // 토큰 만료 시 리프레시 시도
+      if (error.name === 'TokenExpiredError') {
+        try {
+          const refreshToken = req.cookies.refreshToken;
+          if (refreshToken) {
+            return refreshAndRetry(req, res, next);
+          }
+        } catch (refreshError) {
+          logger.error('토큰 리프레시 실패', {
+            requestId: req.id,
+            error: refreshError.name
+          });
         }
-      });
+      }
+      
+      req.user = null;
     }
     next();
   } catch (error) {
@@ -47,6 +49,7 @@ exports.optionalVerifyToken = async (req, res, next) => {
         stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
       }
     });
+    req.user = null;
     next();
   }
 };
@@ -54,11 +57,11 @@ exports.optionalVerifyToken = async (req, res, next) => {
 // JWT 토큰 검증 미들웨어
 exports.verifyToken = async (req, res, next) => {
   try {
-    // 헤더에서 토큰 추출
-    const authHeader = req.headers.authorization;
+    // 쿠키에서 토큰 추출
+    const accessToken = req.cookies.accessToken;
     
     // access token이 없는 경우
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!accessToken) {
       logger.warn('액세스 토큰 없음', {
         requestId: req.id,
         path: req.path
@@ -66,8 +69,6 @@ exports.verifyToken = async (req, res, next) => {
       return res.status(401).json({ message: '인증이 필요합니다.' });
     }
 
-    const accessToken = authHeader.split(' ')[1];
-    
     try {
       // access token 검증
       const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
@@ -80,17 +81,18 @@ exports.verifyToken = async (req, res, next) => {
         });
         return res.status(401).json({ message: '유저를 찾을 수 없습니다.' });
       }
-
+      
       req.user = user;
       next();
     } catch (error) {
+      // 토큰 만료 시 리프레시 시도
+      if (error.name === 'TokenExpiredError') {
+        return refreshAndRetry(req, res, next);
+      }
+
       logger.warn('토큰 검증 실패', {
         requestId: req.id,
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
-        }
+        error: error.name
       });
       return res.status(401).json({ 
         message: '유효하지 않은 토큰입니다.', 
@@ -107,6 +109,38 @@ exports.verifyToken = async (req, res, next) => {
       }
     });
     return res.status(500).json({ message: '서버 오류' });
+  }
+};
+
+// 토큰 리프레시 함수 추가
+const refreshAndRetry = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ message: '리프레시 토큰이 없습니다.' });
+    }
+
+    const tokens = await tokenHandler.refreshTokens(refreshToken);
+    
+    // 새 토큰 쿠키에 설정
+    setCookies(res, tokens.accessToken, tokens.refreshToken);
+    
+    // 다시 원래 요청 처리
+    const decoded = jwt.verify(tokens.accessToken, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.id);
+    
+    if (!user) {
+      return res.status(401).json({ message: '유저를 찾을 수 없습니다.' });
+    }
+    
+    req.user = user;
+    next();
+  } catch (error) {
+    logger.error('토큰 리프레시 실패', {
+      requestId: req.id,
+      error: error.name
+    });
+    return res.status(401).json({ message: '인증 세션이 만료되었습니다. 다시 로그인해주세요.' });
   }
 };
 

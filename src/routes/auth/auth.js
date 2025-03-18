@@ -8,6 +8,7 @@ const tokenHandler = require('../../middleware/tokenHandler');
 const logger = require('../../config/winston');
 const { sanitizeData } = require('../../utils/sanitizer');
 const activityService = require('../../services/activityService');
+const { setCookies, clearCookies } = require('../../middleware/cookieHandler');
 
 // Google OAuth 로그인
 router.get('/auth/google',
@@ -42,7 +43,8 @@ router.get('/auth/google/callback',
       state: req.query.state
     };
 
-    let redirectUrl = process.env.FRONTEND_URL; // 기본값
+    const isProduction = process.env.NODE_ENV === 'production';
+    let redirectUrl = isProduction ? process.env.FRONTEND_URL : 'http://localhost:3000'; // 기본값
     let returnPath = '/dashboard'; // 기본 경로
 
     try {
@@ -66,7 +68,7 @@ router.get('/auth/google/callback',
         throw new Error('사용자 정보를 찾을 수 없습니다');
       }
       
-      const userId = req.user.id; // 사용자 ID를 변수에 할당
+      const userId = req.user.id;
       
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
@@ -79,12 +81,13 @@ router.get('/auth/google/callback',
         { where: { id: req.user.id } }
       );
 
-      // 토큰을 URL 파라미터로 전달 (보안상 좋은 방법은 아니지만 서드파티 쿠키 문제를 우회)
-      const finalPath = returnPath.includes('?') ? 
-        `${returnPath}&accessToken=${accessToken}&refreshToken=${refreshToken}` : 
-        `${returnPath}?accessToken=${accessToken}&refreshToken=${refreshToken}`;
+      // 쿠키 설정
+      setCookies(res, accessToken, refreshToken);
 
-      // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
+      // 토큰 파라미터 없는 경로 설정 (쿠키로 전환했으므로)
+      const finalPath = returnPath;
+
+      // 최종 리다이렉트 URL 조합
       const finalRedirectUrl = redirectUrl.endsWith('/') 
         ? `${redirectUrl}${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
         : `${redirectUrl}${finalPath.startsWith('/') ? finalPath : `/${finalPath}`}`;
@@ -94,7 +97,7 @@ router.get('/auth/google/callback',
         finalRedirectUrl
       }));
 
-      // 활동 기록 - 올바른 userId 사용
+      // 활동 기록
       await activityService.recordActivity(userId, 'login', {
         provider: 'google',
         timestamp: new Date()
@@ -168,8 +171,8 @@ router.get('/auth/kakao/callback',
         throw new Error('사용자 정보를 찾을 수 없습니다');
       }
       
-      const userId = req.user.id; // 사용자 ID를 변수에 할당
-
+      const userId = req.user.id;
+      
       const accessToken = tokenHandler.generateAccessToken(req.user);
       const refreshToken = tokenHandler.generateRefreshToken(req.user);
       
@@ -181,12 +184,13 @@ router.get('/auth/kakao/callback',
         { where: { id: req.user.id } }
       );
 
-      // 토큰을 URL 파라미터로 전달
-      const finalPath = returnPath.includes('?') ? 
-        `${returnPath}&accessToken=${accessToken}&refreshToken=${refreshToken}` : 
-        `${returnPath}?accessToken=${accessToken}&refreshToken=${refreshToken}`;
+      // 쿠키 설정
+      setCookies(res, accessToken, refreshToken);
 
-      // 최종 리다이렉트 URL 조합 (마지막 슬래시 처리 주의)
+      // 토큰 파라미터 없는 경로 설정 (쿠키로 전환했으므로)
+      const finalPath = returnPath;
+
+      // 최종 리다이렉트 URL 조합
       const finalRedirectUrl = redirectUrl.endsWith('/') 
         ? `${redirectUrl}${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
         : `${redirectUrl}${finalPath.startsWith('/') ? finalPath : `/${finalPath}`}`;
@@ -196,9 +200,9 @@ router.get('/auth/kakao/callback',
         finalRedirectUrl
       }));
 
-      // 활동 기록 - 올바른 userId 사용
+      // 활동 기록
       await activityService.recordActivity(userId, 'login', {
-        provider: 'kakao',
+        provider: 'google',
         timestamp: new Date()
       });
       
@@ -231,6 +235,8 @@ router.post('/auth/logout', verifyToken, async (req, res) => {
       await tokenHandler.invalidateTokens(req.user.id);
       logger.info('토큰 무효화 성공', sanitizeData(logContext));
     }
+
+    clearCookies(res);
 
     res.json({ message: '로그아웃 되었습니다.' });
   } catch (error) {
@@ -309,14 +315,9 @@ router.patch('/api/users/:userId/role', verifyToken, isSuperAdmin, async (req, r
 router.get('/auth/me', optionalVerifyToken, async (req, res) => {
   try {
     const userId = req.user?.id;
-    const logContext = {
-      requestId: req.id,
-      userId: req.user?.id,
-      path: req.path,
-    };
 
-    if (!userId) {
-      return res.status(401).json({ message: '인증이 필요합니다.' });
+    if (!req.user) {
+      return res.json({ user: null });
     }
     
     // 사용자 정보 조회
@@ -324,8 +325,6 @@ router.get('/auth/me', optionalVerifyToken, async (req, res) => {
       where: { id: userId },
       attributes: ['id', 'email', 'name', 'role', 'provider', 'profileImage', 'lastLogin'] 
     });
-
-    // console.log(user);
 
     if (!user) {
       return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
@@ -354,7 +353,6 @@ router.get('/auth/me', optionalVerifyToken, async (req, res) => {
         stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
       }
     }));
-    console.error('사용자 정보 조회 실패:', error);
     res.status(500).json({ message: '서버 오류' });
   }
 });
