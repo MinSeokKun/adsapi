@@ -42,7 +42,7 @@ router.post('/auth/login', async (req, res) => {
     setCookies(res, tokens.accessToken, tokens.refreshToken);
     
     // 활동 기록
-    await activityService.recordActivity(user.id, ACTIVITY_TYPES.USER_LOGIN, {
+    await activityService.recordDailyActivity(user.id, ACTIVITY_TYPES.USER_LOGIN, {
       provider: 'local',
       timestamp: new Date(),
       ip: req.ip,

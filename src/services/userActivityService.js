@@ -29,6 +29,34 @@ const userActivityService = {
     }
   },
 
+  recordDailyActivity: async (userId, activityType, details = {}) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 오늘 날짜의 시작 시간으로 설정
+    
+    // 오늘 이미 로그인 활동이 있는지 확인
+    const existingActivity = await UserActivity.findOne({
+      where: {
+        user_id: userId,
+        activity_type: activityType,
+        created_at: {
+          [Op.gte]: today
+        }
+      }
+    });
+    
+    // 오늘 활동이 없으면 새로 생성
+    if (!existingActivity) {
+      return await UserActivity.create({
+        user_id: userId,
+        activity_type: activityType,
+        details: details
+      });
+    }
+    
+    // 이미 오늘 활동이 있으면 기존 활동 반환
+    return existingActivity;
+  },
+
   /**
    * 최근 활동을 조회합니다 (관리자 대시보드용)
    * @param {number} limit - 가져올 활동 수
@@ -52,6 +80,7 @@ const userActivityService = {
       throw error;
     }
   },
+
 
   /**
    * 특정 사용자의 활동을 조회합니다
