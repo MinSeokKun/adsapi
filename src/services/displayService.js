@@ -60,6 +60,26 @@ class DisplayService {
     });
 
     return displays;
+  };
+
+  // 디스플레이 접근 권한 조회
+  async checkDisplayOwnership(user_id, device_id) {
+    const display = await Display.findOne({
+      where: { device_id },
+      include: {
+        model: Salon,
+        as: 'salon', // 소문자 'salon'으로 as 지정
+        where: { owner_id: user_id }
+      }
+    });
+    
+    return display;
+  }
+
+  // 디스플레이 삭제
+  async deleteDisplay(display_id) {
+    const display = await Display.findByPk(display_id);
+    await display.destroy();
   }
 
 }
