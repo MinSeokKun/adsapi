@@ -7,54 +7,67 @@ const userActivityService = require('../services/userActivityService');
  * @returns {Function} Express 미들웨어
  */
 exports.logActivity = (activityType, getDetailsFunction = null) => {
-  return (req, res, next) => {
-    // 원래 응답 메서드를 저장
-    const originalSend = res.send;
-    const originalJson = res.json;
-    const originalEnd = res.end;
-
-    // 성공적인 응답인 경우만 활동 로깅
-    const logIfSuccess = async () => {
-      if (res.statusCode >= 200 && res.statusCode < 300 && req.user) {
+  return async (req, res, next) => {
+    // 응답 완료 이벤트에 리스너 등록
+    res.on('finish', async () => {
+      // 성공 응답인 경우만 로깅
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user && req.user.id) {
         try {
           const details = getDetailsFunction ? getDetailsFunction(req) : {};
-          
-          // 요청 메타데이터 추가
           details.ip = req.ip;
           details.method = req.method;
           details.path = req.path;
           
           await userActivityService.recordActivity(req.user.id, activityType, details);
+          console.log(`Activity logged: ${activityType}`);
         } catch (error) {
           console.error('활동 로깅 실패:', error);
-          // 로깅 실패해도 응답은 계속 진행
         }
       }
-    };
-
-    // 응답 메서드 오버라이드
-    res.send = function(body) {
-      const result = originalSend.call(this, body);
-      logIfSuccess();
-      return result;
-    };
-
-    res.json = function(body) {
-      const result = originalJson.call(this, body);
-      logIfSuccess();
-      return result;
-    };
-
-    res.end = function(chunk, encoding) {
-      const result = originalEnd.call(this, chunk, encoding);
-      logIfSuccess();
-      return result;
-    };
+    });
 
     next();
   };
 };
 
+// 컨트롤러 실행 전에 필요한 정보를 캡처하는 미들웨어
+exports.prepareActivityLog = (activityType, getDetailsFunction = null) => {
+  return async (req, res, next) => {
+    // 원래 응답 메서드를 저장
+    const originalJson = res.json;
+    
+    // res.json을 오버라이드
+    res.json = function(data) {
+      // 성공 응답일 경우에만 로깅
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user) {
+        try {
+          const details = getDetailsFunction ? getDetailsFunction(req, data) : {};
+          
+          // 요청 및 응답 메타데이터 추가
+          details.ip = req.ip;
+          details.method = req.method;
+          details.path = req.path;
+          
+          // 응답 전에 로깅 수행
+          userActivityService.recordActivity(req.user.id, activityType, details)
+            .then(() => {
+              console.log(`Activity logged: ${activityType}`);
+            })
+            .catch(error => {
+              console.error('활동 로깅 실패:', error);
+            });
+        } catch (error) {
+          console.error('활동 로깅 준비 실패:', error);
+        }
+      }
+      
+      // 원래 json 메소드 호출
+      return originalJson.call(this, data);
+    };
+    
+    next();
+  };
+};
 
 /**
  * 로그인 활동을 로깅하는 미들웨어
@@ -122,7 +135,8 @@ exports.ACTIVITY_TYPES = {
   // 관리자 활동
   ADMIN_LOGIN: 'admin_login',
   ADMIN_USER_UPDATE: 'admin_user_update',
-  ADMIN_SALON_UPDATE: 'admin_salon_update'
+  ADMIN_SALON_UPDATE: 'admin_salon_update',
+
 };
 
 // 활동 로그 설명 제공 (선택적, UI 표시용)

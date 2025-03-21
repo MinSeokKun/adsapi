@@ -99,7 +99,7 @@ router.get('/auth/google/callback',
       }));
 
       // 활동 기록
-      await activityService.recordDailyActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
+      await activityService.recordActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
         provider: 'google',
         timestamp: new Date(),
         ip: req.ip,
@@ -204,7 +204,7 @@ router.get('/auth/kakao/callback',
       }));
 
       // 활동 기록
-      await activityService.recordDailyActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
+      await activityService.recordActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
         provider: 'kakao',
         timestamp: new Date(),
         ip: req.ip,

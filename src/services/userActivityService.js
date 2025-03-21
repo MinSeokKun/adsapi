@@ -30,32 +30,58 @@ const userActivityService = {
   },
 
   recordDailyActivity: async (userId, activityType, details = {}) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // 오늘 날짜의 시작 시간으로 설정
-    
-    // 오늘 이미 로그인 활동이 있는지 확인
-    const existingActivity = await UserActivity.findOne({
-      where: {
-        user_id: userId,
-        activity_type: activityType,
-        created_at: {
-          [Op.gte]: today
-        }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 오늘 날짜의 시작 시간으로 설정
+  
+  // 오늘 이미 로그인 활동이 있는지 확인
+  const existingActivity = await UserActivity.findOne({
+    where: {
+      user_id: userId,
+      activity_type: activityType,
+      created_at: {
+        [Op.gte]: today
       }
+    }
+  });
+  
+  // 현재 시간을 details에 last_login_time으로 추가
+  const updatedDetails = {
+    ...details,
+    last_login_time: new Date().toISOString()
+  };
+  
+  // 오늘 활동이 없으면 새로 생성
+  if (!existingActivity) {
+    return await UserActivity.create({
+      user_id: userId,
+      activity_type: activityType,
+      details: updatedDetails
     });
+  } else {
+    // 기존 details와 새로운 details 병합
+    const mergedDetails = {
+      ...existingActivity.details,
+      last_login_time: new Date().toISOString()
+    };
     
-    // 오늘 활동이 없으면 새로 생성
-    if (!existingActivity) {
-      return await UserActivity.create({
-        user_id: userId,
-        activity_type: activityType,
-        details: details
-      });
+    // login_count가 없으면 2로 설정(첫 로그인 + 현재 로그인), 있으면 1 증가
+    if (mergedDetails.login_count === undefined) {
+      mergedDetails.login_count = 2;
+    } else {
+      mergedDetails.login_count += 1;
     }
     
-    // 이미 오늘 활동이 있으면 기존 활동 반환
-    return existingActivity;
-  },
+    // first_login_time이 없으면 추가
+    if (mergedDetails.first_login_time === undefined) {
+      mergedDetails.first_login_time = existingActivity.created_at.toISOString();
+    }
+    
+    // 오늘 활동이 있으면 details만 업데이트
+    return await existingActivity.update({
+      details: mergedDetails
+    });
+  }
+},
 
   /**
    * 최근 활동을 조회합니다 (관리자 대시보드용)
