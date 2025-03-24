@@ -34,6 +34,7 @@ const corsOptions = {
         'http://localhost:3000',
         'https://ads-web-next.vercel.app',
         'https://app.cocoh.kr',
+        'https://test-app.cocoh.kr',
       ]
       : [
         'http://localhost:3000',
