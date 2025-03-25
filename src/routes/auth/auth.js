@@ -122,6 +122,117 @@ router.get('/auth/google/callback',
   }
 );
 
+// Naver OAuth 로그인
+router.get('/auth/naver',
+  (req, res, next) => {
+    const logContext = {
+      requestId: req.id,
+      provider: 'naver',
+      ip: req.ip,
+      path: req.path,
+      state: req.query.state
+    };
+    
+    next();
+  },
+  (req, res, next) => {
+    passport.authenticate('naver', { 
+      scope: ['email', 'profile', 'name', 'image'],
+      state: req.query.state
+    })(req, res, next);
+  }
+);
+
+// Naver OAuth 콜백
+router.get('/auth/naver/callback',
+  passport.authenticate('naver', { failureRedirect: '/login' }),
+  async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      provider: 'naver',
+      userId: req.user?.id,
+      path: req.path,
+      state: req.query.state
+    };
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    let redirectUrl = isProduction ? process.env.FRONTEND_URL : 'http://localhost:3000'; // 기본값
+    let returnPath = '/dashboard'; // 기본 경로
+
+    try {
+      // state 파라미터에서 정보 추출
+      if (req.query.state) {
+        const stateData = JSON.parse(decodeURIComponent(req.query.state));
+        if (stateData.redirectUrl) {
+          redirectUrl = stateData.redirectUrl;
+        }
+        if (stateData.returnUrl) {
+          returnPath = stateData.returnUrl; // 상대 경로를 저장
+        }
+      }
+    } catch (e) {
+      logger.error('State 파싱 실패', { error: e });
+    }
+
+    try {
+      // req.user 객체에서 사용자 ID 확인
+      if (!req.user || !req.user.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
+      
+      const userId = req.user.id;
+      
+      const accessToken = tokenHandler.generateAccessToken(req.user);
+      const refreshToken = tokenHandler.generateRefreshToken(req.user);
+      
+      await User.update(
+        { 
+          refreshToken,
+          lastLogin: new Date()
+        },
+        { where: { id: req.user.id } }
+      );
+
+      // 쿠키 설정
+      setCookies(res, accessToken, refreshToken);
+
+      // 토큰 파라미터 없는 경로 설정 (쿠키로 전환했으므로)
+      const finalPath = returnPath;
+
+      // 최종 리다이렉트 URL 조합
+      const finalRedirectUrl = redirectUrl.endsWith('/') 
+        ? `${redirectUrl}${finalPath.startsWith('/') ? finalPath.slice(1) : finalPath}`
+        : `${redirectUrl}${finalPath.startsWith('/') ? finalPath : `/${finalPath}`}`;
+
+      logger.info('OAuth 인증 성공 - 리다이렉트 예정', sanitizeData({
+        ...logContext,
+        finalRedirectUrl
+      }));
+
+      // 활동 기록
+      await activityService.recordActivity(userId, ACTIVITY_TYPES.USER_LOGIN, {
+        provider: 'naver',
+        timestamp: new Date(),
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      
+      res.redirect(finalRedirectUrl);
+    } catch (error) {
+      logger.error('OAuth 콜백 처리 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      res.redirect('/login');
+    }
+  }
+);
+
 // Kakao OAuth 로그인 (Google과 유사하게 수정)
 router.get('/auth/kakao',
   (req, res, next) => {
