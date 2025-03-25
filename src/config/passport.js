@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const KakaoStrategy = require('passport-kakao').Strategy;
+const NaverStrategy = require('passport-naver-v2').Strategy;
 const { User } = require('../models');
 const { Op } = require('sequelize');
 
@@ -59,6 +60,122 @@ passport.use(new GoogleStrategy({
 
       done(null, newUser);
     } catch (error) {
+      done(error);
+    }
+  }
+));
+
+// Navbr Strategy 설정
+passport.use(new NaverStrategy({
+  clientID: process.env.NAVER_CLIENT_ID,
+    clientSecret: process.env.NAVER_CLIENT_SECRET,
+    callbackURL: "/auth/naver/callback",
+    proxy: true
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      
+      const email = profile.email;
+      
+      if (!email) {
+        // _json.response에서 이메일 추출 시도
+        const responseEmail = profile._json?.response?.email;
+        
+        if (responseEmail) {
+          // 이 값을 사용하는 대신 아래 코드 계속 진행
+          const existingUser = await User.findOne({
+            where: {
+              [Op.or]: [
+                {
+                  provider: 'naver',
+                  providerId: profile.id
+                },
+                {
+                  email: responseEmail
+                }
+              ]
+            }
+          });
+          
+          if (existingUser) {
+            if (existingUser.provider !== 'naver') {
+              console.log('이미 다른 방식으로 가입된 이메일입니다:', existingUser.provider);
+            }
+            return done(null, existingUser);
+          }
+  
+          const newUser = await User.create({
+            email: responseEmail,
+            name: profile.name || profile._json?.response?.name || '네이버 사용자',
+            provider: 'naver',
+            providerId: profile.id,
+            profileImage: profile.profileImage || profile._json?.response?.profile_image,
+            refreshToken
+          });
+  
+          return done(null, newUser);
+        }
+        
+        // 최후의 대안: providerId를 이용한 임시 이메일 생성
+        const tempEmail = `naver_${profile.id}@example.com`;
+        
+        const existingUser = await User.findOne({
+          where: {
+            provider: 'naver',
+            providerId: profile.id
+          }
+        });
+        
+        if (existingUser) {
+          return done(null, existingUser);
+        }
+  
+        const newUser = await User.create({
+          email: tempEmail,
+          name: profile.name || profile._json?.response?.name || '네이버 사용자',
+          provider: 'naver',
+          providerId: profile.id,
+          profileImage: profile.profileImage || profile._json?.response?.profile_image,
+          refreshToken
+        });
+  
+        return done(null, newUser);
+      }
+  
+      // 원래 코드 계속 진행 (이메일이 있는 경우)
+      const existingUser = await User.findOne({
+        where: {
+          [Op.or]: [
+            {
+              provider: 'naver',
+              providerId: profile.id
+            },
+            {
+              email: email
+            }
+          ]
+        }
+      });
+      
+      if (existingUser) {
+        if (existingUser.provider !== 'naver') {
+          console.log('이미 다른 방식으로 가입된 이메일입니다:', existingUser.provider);
+        }
+        return done(null, existingUser);
+      }
+  
+      const newUser = await User.create({
+        email: email,
+        name: profile.name || '네이버 사용자',
+        provider: 'naver',
+        providerId: profile.id,
+        profileImage: profile.profileImage,
+        refreshToken
+      });
+  
+      done(null, newUser);
+    } catch (error) {
+      console.error('네이버 인증 오류:', error);
       done(error);
     }
   }
