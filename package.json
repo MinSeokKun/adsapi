@@ -8,7 +8,9 @@
     "dev": "nodemon index.js",
     "seed": "node src/seeders/seed.js",
     "backup": "node scripts/runBackup.js",
-    "restore": "node scripts/runRestore.js"
+    "restore": "node scripts/runRestore.js",
+    "migrate": "sequelize-cli db:migrate",
+    "deploy": "npm run migrate && npm start"
   },
   "author": "",
   "license": "ISC",
