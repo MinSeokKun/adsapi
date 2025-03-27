@@ -30,6 +30,25 @@ router.get('/api/logs/files',
     });
   })
 );
+
+// 현재 로그 레벨을 가져오는 API
+router.get('/api/logs/level', verifyToken, isSuperAdmin, apiLimiter, asyncHandler(async (req, res) => {
+  try {
+    // 로거의 현재 레벨 가져오기
+    const currentLevel = logger.level; // winston 로거 사용시 이렇게 가져올 수 있습니다
+    
+    res.json({
+      success: true,
+      level: currentLevel
+    });
+  } catch (error) {
+    logger.error('로그 레벨 조회 중 오류 발생', { error, userId: req.user.id });
+    res.status(500).json({ 
+      success: false, 
+      message: '로그 레벨을 조회하는 중 오류가 발생했습니다.'
+    });
+  }
+}));
   
 // 로그 레벨 변경
 router.post('/api/logs/level',
