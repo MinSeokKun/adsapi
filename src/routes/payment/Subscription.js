@@ -108,7 +108,7 @@ router.get('/api/subscription-plan/:planId', async (req, res) => {
 });
 
 // 슈퍼 관리자 구독 플랜 등록
-router.post('/api/admin/subscription-plans', 
+router.post('/api/admin/subscription-plan', 
   verifyToken, 
   isSuperAdmin, 
   async (req, res) => {

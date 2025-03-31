@@ -90,7 +90,6 @@ class AdService {
         as: 'location'
       }]
     });
-
   
     if (!salon || !salon.location) {
       throw new Error('Salon or location not found');
@@ -98,7 +97,7 @@ class AdService {
   
     const salonLocation = salon.location;
   
-    // 2. 모든 타입의 광고 한 번에 가져오기 (전국, 행정구역, 반경 모두 포함)
+    // 광고 조회 (반경 검색 관련 코드 제거)
     const ads = await Ad.findAll({
       where: { is_active: true },
       include: [
@@ -113,7 +112,7 @@ class AdService {
         },
         {
           model: AdLocation,
-          as: 'targetLocations',
+          as: 'targetLocations', // as 속성 활성화 권장
           required: true,
           where: {
             [Op.or]: [
@@ -128,16 +127,7 @@ class AdService {
                   { district: salonLocation.district },
                   { district: null } // 구/군 미지정인 경우 (시/도 단위 타겟팅)
                 ]
-              },
-              
-              // 반경 기반 광고 - MySQL 지리공간 쿼리 사용
-              sequelize.literal(`
-                target_type = 'radius' AND 
-                ST_Distance_Sphere(
-                  point(center_longitude, center_latitude),
-                  point(${salonLocation.longitude}, ${salonLocation.latitude})
-                ) <= radius
-              `)
+              }
             ]
           }
         }
@@ -326,11 +316,24 @@ async syncAdLocations(adId, targetLocations, transaction) {
   
   // 새 타겟 위치 생성
   if (targetLocations && targetLocations.length > 0) {
-    await Promise.all(targetLocations.map(location => 
-      AdLocation.create({
-        ...location,
+    // 각 위치 데이터에서 반경 관련 필드 제거 및 검증
+    const cleanedLocations = targetLocations.map(location => {
+      // 반경 관련 필드 제거 (필요한 경우)
+      const { radius, center_latitude, center_longitude, ...rest } = location;
+      
+      // 행정구역 타입이면서 city가 없으면 오류
+      if (rest.target_type === 'administrative' && !rest.city) {
+        throw new Error('City is required for administrative targeting');
+      }
+      
+      return {
+        ...rest,
         ad_id: adId
-      }, { transaction })
+      };
+    });
+    
+    await Promise.all(cleanedLocations.map(location => 
+      AdLocation.create(location, { transaction })
     ));
   }
   
