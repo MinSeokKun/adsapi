@@ -94,6 +94,19 @@ class SalonService {
 
     return salon;
   }
+  
+  async updateSalonStatus(salonId, status) {
+    const salon = await Salon.findByPk(salonId);
+
+    if (!salon) {
+      throw new Error('미용실을 찾을 수 없습니다.');
+    }
+
+    salon.status = status;
+    await salon.save();
+
+    return salon;
+  };
 
   async createSalon(salonData, address, addressDetail, ownerId) {
     const result = await sequelize.transaction(async (t) => {
@@ -233,7 +246,8 @@ class SalonService {
       page = 1,
       limit = 10,
       sortBy = 'created_at',
-      sortOrder = 'DESC'
+      sortOrder = 'DESC',
+      status // status 파라미터 추가
     } = options;
 
     // Validate page and limit
@@ -264,6 +278,11 @@ class SalonService {
     // Build where conditions
     const whereConditions = {};
     const locationWhereConditions = {};
+
+    // Add status filtering (새로 추가된 부분)
+    if (status) {
+      whereConditions.status = status;
+    }
 
     // Add keyword search to where conditions
     if (keyword && keyword.trim() !== '') {

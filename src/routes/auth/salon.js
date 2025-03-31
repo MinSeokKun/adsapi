@@ -62,4 +62,11 @@ router.delete(
   salonController.deleteSalon
 );
 
+router.patch(
+  '/api/salons/:salonId/status', 
+  verifyToken, 
+  isSuperAdmin, 
+  salonController.updateSalonStatus
+);
+
 module.exports = router;

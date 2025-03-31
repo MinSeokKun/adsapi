@@ -108,6 +108,7 @@ exports.ACTIVITY_TYPES = {
   SALON_CREATE: 'salon_create',
   SALON_UPDATE: 'salon_update',
   SALON_DELETE: 'salon_delete',
+  SALON_STATUS_UPDATE: 'salon_status_update',
   
   // 광고 관련
   AD_CREATE: 'ad_create',

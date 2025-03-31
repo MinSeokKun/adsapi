@@ -29,6 +29,12 @@ const Salon = sequelize.define('Salon', {
         allowNull: true,
         comment: '미용실 소개 및 설명'
     },
+    status: {
+        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        allowNull: false,
+        defaultValue: 'pending',
+        comment: '승인 상태 (승인 대기, 승인 완료, 반려)'
+    },
     created_at: {
         type: DataTypes.DATE,
         allowNull: false

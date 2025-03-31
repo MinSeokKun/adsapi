@@ -138,7 +138,8 @@ const salonController = {
         page,
         limit,
         sortBy,
-        sortOrder
+        sortOrder,
+        status // status 파라미터 추가
       } = req.query;
       
       // Parse options
@@ -149,7 +150,8 @@ const salonController = {
         page: page ? parseInt(page, 10) : 1,
         limit: limit ? parseInt(limit, 10) : 10,
         sortBy: sortBy || 'created_at',
-        sortOrder: (sortOrder || 'DESC').toUpperCase()
+        sortOrder: (sortOrder || 'DESC').toUpperCase(),
+        status // status 파라미터 추가
       };
       
       const result = await salonService.searchSalons(parsedOptions);
@@ -456,6 +458,79 @@ const salonController = {
       }
 
       logger.error('미용실 정보 수정 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      res.status(500).json({ message: '서버 오류' });
+    }
+  },
+
+  /**
+   * 미용실 상태 업데이트
+   * @param {*} req 
+   * @param {*} res 
+   * @returns 
+   */
+  updateSalonStatus: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      salonId: req.params.salonId,
+      path: req.path
+    };
+
+    try {
+      // 상태값 유효성 검사
+      const { status } = req.body;
+      const validStatuses = ['pending', 'approved', 'rejected'];
+      
+      if (!validStatuses.includes(status)) {
+        logger.warn('유효하지 않은 상태값으로 미용실 상태 변경 시도', sanitizeData(logContext));
+        return res.status(400).json({ message: '유효하지 않은 상태값입니다. 유효한 값 [pending, approved, rejected]' });
+      }
+      
+      // 미용실 조회 (존재 여부 확인 및 로깅용)
+      const salon = await salonService.getSalonById(req.params.salonId, req.user.id);
+      
+      if (!salon) {
+        logger.warn('존재하지 않는 미용실 상태 변경 시도', sanitizeData(logContext));
+        return res.status(404).json({ message: '미용실을 찾을 수 없습니다.' });
+      }
+      
+      // 상태 업데이트
+      await salonService.updateSalonStatus(req.params.salonId, status, req.user.id);
+      
+      logger.info('미용실 상태 변경 성공', sanitizeData({
+        ...logContext,
+        previousStatus: salon.status,
+        newStatus: status
+      }));
+      
+      // 활동 로깅
+      await userActivityService.recordActivity(req.user.id, ACTIVITY_TYPES.SALON_STATUS_UPDATE, {
+        salon_id: req.params.salonId,
+        ip: req.ip,
+        salon_name: salon.name,
+        previous_status: salon.status,
+        new_status: status
+      });
+      
+      res.json({ 
+        message: '미용실 상태가 변경되었습니다.',
+        status: status
+      });
+    } catch (error) {
+      if (error.message === 'Salon not found') {
+        logger.warn('존재하지 않는 미용실 상태 변경 시도', sanitizeData(logContext));
+        return res.status(404).json({ message: '미용실을 찾을 수 없습니다.' });
+      }
+      
+      logger.error('미용실 상태 변경 실패', sanitizeData({
         ...logContext,
         error: {
           name: error.name,

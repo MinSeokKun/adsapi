@@ -65,7 +65,7 @@ passport.use(new GoogleStrategy({
   }
 ));
 
-// Navbr Strategy 설정
+// Naver Strategy 설정
 passport.use(new NaverStrategy({
   clientID: process.env.NAVER_CLIENT_ID,
     clientSecret: process.env.NAVER_CLIENT_SECRET,
@@ -182,35 +182,35 @@ passport.use(new NaverStrategy({
 ));
 
 // Kakao Strategy 설정
-// passport.use(new KakaoStrategy({
-//     clientID: process.env.KAKAO_CLIENT_ID,
-//     callbackURL: "/auth/kakao/callback"
-//   },
-//   async (accessToken, refreshToken, profile, done) => {
-//     try {
-//       const existingUser = await User.findOne({
-//         where: {
-//           provider: 'kakao',
-//           providerId: profile.id
-//         }
-//       });
+passport.use(new KakaoStrategy({
+    clientID: process.env.KAKAO_CLIENT_ID,
+    callbackURL: "/auth/kakao/callback"
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const existingUser = await User.findOne({
+        where: {
+          provider: 'kakao',
+          providerId: profile.id
+        }
+      });
 
-//       if (existingUser) {
-//         return done(null, existingUser);
-//       }
+      if (existingUser) {
+        return done(null, existingUser);
+      }
 
-//       const newUser = await User.create({
-//         email: profile._json.kakao_account.email,
-//         name: profile.displayName,
-//         provider: 'kakao',
-//         providerId: profile.id,
-//         profileImage: profile._json.properties.profile_image,
-//         refreshToken
-//       });
+      const newUser = await User.create({
+        email: profile._json.kakao_account.email,
+        name: profile.profile_nickname,
+        provider: 'kakao',
+        providerId: profile.id,
+        profileImage: profile._json.properties.profile_image,
+        refreshToken
+      });
 
-//       done(null, newUser);
-//     } catch (error) {
-//       done(error);
-//     }
-//   }
-// ));
+      done(null, newUser);
+    } catch (error) {
+      done(error);
+    }
+  }
+));
