@@ -12,8 +12,8 @@ router.get('/api/ads', adController.getAds);
 // 디스플레이용 광고 조회
 router.get('/api/display/ads', displayAuth, adController.getDisplayAds);
 
-// id로 광고 조회
-router.get('/api/ads/:id', verifyToken, adController.getAdById);
+// 광고 검색
+router.get('/api/ads/search', adController.searchAds);
 
 // 광고 전체 목록 조회
 router.get('/api/ads/list', adController.getAllActiveAds);
@@ -26,6 +26,9 @@ router.post(
   handleUploadError,
   adController.createAd
 );
+
+// id로 광고 조회
+router.get('/api/ads/:id', verifyToken, adController.getAdById);
 
 // 광고 수정
 router.put('/api/ads/:id', verifyToken, adController.updateAd);

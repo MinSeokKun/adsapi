@@ -6,15 +6,42 @@ const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 
 class DisplayService {
-  // 디스플레이 생성
+
+  generateUniqueShortId(existingIds = []) {
+    let newId;
+    do {
+      newId = crypto.randomBytes(4).toString('hex');
+    } while (existingIds.includes(newId));
+  
+    return newId;
+  }
+  
   async createDisplay(name, salon_id) {
+    let deviceId;
+    let isUnique = false;
+
+    while (!isUnique) {
+      deviceId = crypto.randomBytes(4).toString('hex');
+      
+      // 해당 device_id가 존재하는지 단 한 번만 확인
+      const existingDevice = await Display.findOne({
+        where: { device_id: deviceId },
+        attributes: ['id']
+      });
+
+      if (!existingDevice) {
+        isUnique = true;
+      }
+    }
+
     const display = await Display.create({
       name,
       salon_id,
-      device_id: uuidv4(),
-      access_token: crypto.randomBytes(32).toString('hex'),
-      status: 'inactive' // 초기 상태
+      device_id: deviceId,
+      access_token: crypto.randomBytes(4).toString('hex'),
+      status: 'inactive'
     });
+
     return display;
   }
 

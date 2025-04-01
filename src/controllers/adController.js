@@ -145,6 +145,57 @@ const adController = {
   },
 
   /**
+   * 광고 조회 페이징
+   * @param {*} req 
+   * @param {*} res 
+   */
+  searchAds: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      path: req.path,
+      query: sanitizeData(req.query)
+    };
+
+    try {
+      const searchResult = await adService.searchAds({
+        title: req.query.title,
+        type: req.query.type,
+        status: req.query.status,
+        salonId: req.query.salonId,
+        startDate: req.query.startDate,
+        endDate: req.query.endDate,
+        page: req.query.page,
+        limit: req.query.limit,
+        sortBy: req.query.sortBy,
+        sortOrder: req.query.sortOrder
+      });
+  
+      logger.info('광고 검색 완료', sanitizeData({
+        ...logContext,
+        totalItems: searchResult.pagination.totalItems
+      }));
+  
+      res.json(searchResult);
+    } catch (error) {
+      logger.error('광고 검색 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '광고 검색 중 오류가 발생했습니다',
+        details: process.env.NODE_ENV === 'production' ? undefined : error.message
+      });
+    }
+  },
+  
+  /**
    * ID로 광고 조회
    */
   getAdById: async (req, res) => {

@@ -495,7 +495,7 @@ const salonController = {
       }
       
       // 미용실 조회 (존재 여부 확인 및 로깅용)
-      const salon = await salonService.getSalonById(req.params.salonId, req.user.id);
+      const salon = await salonService.adminGetSalonById(req.params.salonId);
       
       if (!salon) {
         logger.warn('존재하지 않는 미용실 상태 변경 시도', sanitizeData(logContext));

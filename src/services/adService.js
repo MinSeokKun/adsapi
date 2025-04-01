@@ -1,6 +1,6 @@
 // src/services/adService.js
 const sequelize = require('../config/database');
-const { Ad, AdMedia, AdSchedule, Salon, AdLocation } = require('../models');
+const { Ad, AdMedia, AdSchedule, Salon, AdLocation, Location } = require('../models');
 const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse } = require('../utils/adUtils');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
@@ -40,28 +40,188 @@ class AdService {
    * 디스플레이 용 광고 조회 (salon_id로 추적한 광고 목록)
    */
   async getAdsByTimeAndLocation(time, salonId) {
-    const queryOptions = {
-      include: [{
-        model: AdMedia,
-        as: 'media',
-        attributes: ['url', 'type', 'duration', 'size', 'is_primary']
-      }, {
-        model: AdSchedule,
-        required: false,
-        attributes: ['time']
-      }],
-      where: {
-        is_active: true
+    try {
+      // 1. 미용실 위치 정보 조회
+      const salonLocation = await Location.findOne({
+        where: { salon_id: salonId }
+      });
+  
+      if (!salonLocation) {
+        throw new Error('Salon location not found');
       }
-    };
-
-    if (time) {
-      queryOptions.include[1].where = { time: time + ':00:00' };
-      queryOptions.include[1].required = true;
+  
+      // 2. 쿼리 옵션 기본 설정
+      const queryOptions = {
+        include: [
+          {
+            model: AdMedia,
+            as: 'media',
+            attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+          }, 
+          {
+            model: AdSchedule,
+            required: false
+          },
+          {
+            model: AdLocation,
+            required: true,
+            where: {
+              [Op.or]: [
+                // 전국 광고 포함
+                { target_type: 'nationwide' },
+                // 행정구역 매칭 광고
+                {
+                  target_type: 'administrative',
+                  city: salonLocation.city,
+                  [Op.or]: [
+                    { district: salonLocation.district },
+                    { district: null } // 시/도 단위 타겟팅 (구/군 미지정)
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        where: {
+          is_active: true
+        }
+      };
+  
+      // 3. 시간 조건 추가 (있을 경우)
+      if (time) {
+        queryOptions.include[1].where = { time: time + ':00:00' };
+        queryOptions.include[1].required = true;
+      }
+  
+      // 4. 광고 조회 실행
+      const ads = await Ad.findAll(queryOptions);
+      return ads;
+      
+    } catch (error) {
+      console.error('Error fetching ads by time and location:', error);
+      throw error;
     }
+  }
 
-    const ads = await Ad.findAll(queryOptions);
-    return ads;
+  /**
+   * 광고에 타겟팅된 미용실 수를 계산합니다
+   * @param {number} adId - 광고 ID
+   * @returns {Promise<number>} 타겟팅된 미용실 수
+   */
+  async getTargetedSalonCount(adId) {
+    try {
+      // 광고의 타겟 지역 설정 가져오기
+      const adLocations = await AdLocation.findAll({
+        where: { ad_id: adId }
+      });
+
+      // 타겟 지역이 없으면 0 반환
+      if (!adLocations || adLocations.length === 0) {
+        return 0;
+      }
+
+      let salonCount = 0;
+
+      // 전국 타겟팅이 있는지 확인
+      const hasNationwide = adLocations.some(loc => loc.target_type === 'nationwide');
+      
+      // 전국 타겟팅이 있으면 모든 미용실 수를 반환
+      if (hasNationwide) {
+        salonCount = await Salon.count({
+          where: { status: 'approved' } // 승인된 미용실만 카운트
+        });
+        return salonCount;
+      }
+
+      // 행정구역 타겟팅 처리
+      const administrativeLocations = adLocations.filter(loc => 
+        loc.target_type === 'administrative'
+      );
+
+      if (administrativeLocations.length > 0) {
+        // 행정구역 기반 조건 구성
+        const whereConditions = [];
+        
+        for (const loc of administrativeLocations) {
+          const locationCondition = {
+            city: loc.city
+          };
+          
+          // 구/군이 지정된 경우에만 조건에 추가
+          if (loc.district) {
+            locationCondition.district = loc.district;
+          }
+          
+          whereConditions.push(locationCondition);
+        }
+        
+        // 모든 대상 미용실 카운트
+        salonCount = await Salon.count({
+          where: { status: 'approved' },
+          include: [{
+            model: Location,
+            as: 'location',
+            required: true,
+            where: {
+              [Op.or]: whereConditions
+            }
+          }]
+        });
+      }
+
+      return salonCount;
+    } catch (error) {
+      logger.error('타겟팅된 미용실 수 계산 오류', {
+        adId,
+        error: {
+          name: error.name,
+          message: error.message
+        }
+      });
+      return 0; // 오류 시 기본값 반환
+    }
+  }
+
+  /**
+   * 모든 광고에 대한 타겟팅 통계 조회
+   * @returns {Promise<Array>} 각 광고별 타겟팅 통계
+   */
+  async getAllAdTargetingStats() {
+    try {
+      // 활성화된 모든 광고 조회
+      const ads = await Ad.findAll({
+        where: { is_active: true },
+        include: [{
+          model: AdLocation,
+          required: false
+        }]
+      });
+
+      const stats = [];
+      
+      for (const ad of ads) {
+        const targetedSalonCount = await getTargetedSalonCount(ad.id);
+        
+        stats.push({
+          adId: ad.id,
+          title: ad.title,
+          targetedSalonCount: targetedSalonCount,
+          // 타겟팅 유형(전국/지역) 정보 추가
+          targetType: ad.AdLocations && ad.AdLocations.length > 0 
+            ? ad.AdLocations.map(loc => ({
+                type: loc.target_type,
+                city: loc.city,
+                district: loc.district
+              }))
+            : []
+        });
+      }
+
+      return stats;
+    } catch (error) {
+      console.error('Error getting ad targeting stats:', error);
+      throw error;
+    }
   }
 
   /**
@@ -82,8 +242,157 @@ class AdService {
     return ads;
   }
 
+  /**
+   * 광고 검색 기능 (페이지네이션 포함)
+   * @param {Object} options - 검색 옵션
+   * @param {string} options.title - 제목 검색어
+   * @param {string} options.type - 광고 타입 (sponsor/salon)
+   * @param {string} options.status - 광고 상태 (active/inactive)
+   * @param {number} options.salonId - 미용실 ID로 필터링
+   * @param {Date} options.startDate - 검색 시작 날짜
+   * @param {Date} options.endDate - 검색 종료 날짜
+   * @param {number} options.page - 페이지 번호
+   * @param {number} options.limit - 페이지당 항목 수
+   * @param {string} options.sortBy - 정렬 기준 필드
+   * @param {string} options.sortOrder - 정렬 방향 (ASC/DESC)
+   * @returns {Promise<Object>} - 페이지네이션 정보가 포함된 광고 목록
+   */
+  async searchAds(options) {
+    const {
+      title,
+      type,
+      status,
+      salonId,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    // 페이지 및 제한 검증
+    const validatedPage = Math.max(1, parseInt(page, 10));
+    const validatedLimit = Math.max(1, Math.min(50, parseInt(limit, 10)));
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    // 기본 쿼리 옵션
+    const queryOptions = {
+      include: [
+        {
+          model: AdMedia,
+          as: 'media',
+          attributes: ['url', 'type', 'duration', 'size', 'is_primary']
+        },
+        {
+          model: AdSchedule,
+          required: false,
+          attributes: ['time']
+        },
+        {
+          model: Salon,
+          required: false,
+          attributes: ['name']
+        }
+      ],
+      order: [[sortBy, sortOrder]],
+      limit: validatedLimit,
+      offset: offset,
+      distinct: true
+    };
+
+    // WHERE 조건 구성
+    const whereConditions = {};
+
+    // 제목 검색
+    if (title && title.trim() !== '') {
+      whereConditions.title = {
+        [Op.like]: `%${title.trim()}%`
+      };
+    }
+
+    // 광고 타입 필터링
+    if (type) {
+      whereConditions.type = type;
+    }
+
+    // 광고 상태 필터링
+    if (status === 'active') {
+      whereConditions.is_active = true;
+    } else if (status === 'inactive') {
+      whereConditions.is_active = false;
+    }
+
+    // 미용실 ID 필터링
+    if (salonId) {
+      whereConditions.salon_id = salonId;
+    }
+
+    // 날짜 범위 필터링
+    if (startDate && endDate) {
+      whereConditions.created_at = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      whereConditions.created_at = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      whereConditions.created_at = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
+    // WHERE 조건 적용
+    if (Object.keys(whereConditions).length > 0) {
+      queryOptions.where = whereConditions;
+    }
+
+    // 데이터 조회
+    const { count, rows } = await Ad.findAndCountAll(queryOptions);
+
+    // 각 광고에 대해 타겟팅된 미용실 수를 추가
+    const formattedAdsPromises = rows.map(async (ad) => {
+      const formattedAd = formatAdResponse(ad);
+      // 타겟팅된 미용실 수 추가
+      formattedAd.targetedSalonCount = await this.getTargetedSalonCount(ad.id);
+      return formattedAd;
+    });
+
+    // 모든 Promise 처리를 기다림
+    const formattedAds = await Promise.all(formattedAdsPromises);
+
+    // 페이지네이션 메타데이터 계산
+    const totalItems = count;
+    const totalPages = Math.ceil(totalItems / validatedLimit);
+    const hasNext = validatedPage < totalPages;
+    const hasPrevious = validatedPage > 1;
+
+    return {
+      ads: formattedAds,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrevious
+      },
+      filters: {
+        title,
+        type,
+        status,
+        salonId,
+        startDate,
+        endDate,
+        sortBy,
+        sortOrder
+      }
+    };
+  }
+
   async getAdsForSalonId(salonId) {
-    const salon = Salon.findOne({
+    const salon = await Salon.findOne({
       where: { salon_id: salonId },
       include: [{
         model: Location,
