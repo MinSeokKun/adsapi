@@ -167,6 +167,9 @@ class UserService {
         user: {
           id: user.id,
           email: user.email,
+          lastLogin: user.lastLogin,
+          profileImage: user.profileImage,
+          provider: user.provider,
           name: user.name,
           role: user.role
         },

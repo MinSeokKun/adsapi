@@ -126,6 +126,9 @@ function formatAdResponse(ad) {
   const adData = ad.dataValues || ad;
   const mediaArray = adData.media ? (Array.isArray(adData.media) ? adData.media : [adData.media]) : [];
   
+  // 캠페인 데이터 처리
+  const campaignData = adData.AdCampaign ? adData.AdCampaign.dataValues || adData.AdCampaign : null;
+  
   return {
     id: adData.id,
     title: adData.title,
@@ -143,7 +146,35 @@ function formatAdResponse(ad) {
       adData.AdSchedules.map(schedule => 
         parseInt(schedule.dataValues.time.split(':')[0])
       ).sort((a, b) => a - b) 
-      : []
+      : [],
+    // 캠페인 정보 추가
+    campaign: campaignData ? {
+      id: campaignData.id,
+      budget: campaignData.budget,
+      daily_budget: campaignData.daily_budget,
+      start_date: campaignData.start_date,
+      end_date: campaignData.end_date
+    } : null
+  };
+}
+
+function formatPublicAdResponse(ad) {
+  if (!ad) return null;
+
+  const adData = ad.dataValues || ad;
+  const mediaArray = adData.media ? (Array.isArray(adData.media) ? adData.media : [adData.media]) : [];
+  
+  // 대표 이미지만 찾기
+  const primaryMedia = mediaArray.find(m => m.dataValues.is_primary) || 
+                      (mediaArray.length > 0 ? mediaArray[0] : null);
+  
+  return {
+    id: adData.id,
+    title: adData.title,
+    type: adData.type,
+    thumbnail: primaryMedia ? primaryMedia.dataValues.url : null,
+    media_type: primaryMedia ? primaryMedia.dataValues.type : null,
+    duration: primaryMedia ? primaryMedia.dataValues.duration : null
   };
 }
 
@@ -254,6 +285,7 @@ module.exports = {
   processSponsorAdMedia,
   processSalonAdMedia,
   formatAdResponse,
+  formatPublicAdResponse,
   updateAdSchedules,
   updateAdMedia,
   getAdDetails

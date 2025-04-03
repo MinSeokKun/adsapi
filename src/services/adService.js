@@ -1,7 +1,7 @@
 // src/services/adService.js
 const sequelize = require('../config/database');
-const { Ad, AdMedia, AdSchedule, Salon, AdLocation, Location } = require('../models');
-const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, getAdDetails, formatAdResponse } = require('../utils/adUtils');
+const { Ad, AdMedia, AdSchedule, Salon, AdLocation, Location, AdCampaign } = require('../models');
+const { processSponsorAdMedia, updateAdMedia, updateAdSchedules, formatPublicAdResponse, getAdDetails, formatAdResponse } = require('../utils/adUtils');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const { storage } = require('../config/storage')
@@ -293,6 +293,11 @@ class AdService {
           model: Salon,
           required: false,
           attributes: ['name']
+        },
+        {
+          model: AdCampaign, // 새로 추가한 캠페인 모델
+          required: false,
+          attributes: ['budget', 'daily_budget', 'start_date', 'end_date']
         }
       ],
       order: [[sortBy, sortOrder]],
@@ -387,6 +392,85 @@ class AdService {
         endDate,
         sortBy,
         sortOrder
+      }
+    };
+  }
+
+  async getPublicAds(options) {
+    const {
+      title,
+      type = 'sponsor',
+      status,
+      page = 1,
+      limit = 20,  // 일반 사용자에게는 더 많은 결과를 기본값으로 제공
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
+  
+    // 페이지 및 제한 검증
+    const validatedPage = Math.max(1, parseInt(page, 10));
+    const validatedLimit = Math.max(1, Math.min(50, parseInt(limit, 10)));
+    const offset = (validatedPage - 1) * validatedLimit;
+  
+    // 기본 쿼리 옵션 - 현재 활성화된 광고만 표시
+    const queryOptions = {
+      include: [
+        {
+          model: AdMedia,
+          as: 'media',
+          attributes: ['url', 'type', 'duration', 'is_primary']
+        }
+      ],
+      where: {
+        is_active: true,  // 활성화된 광고만 표시
+        type: 'sponsor'
+      },
+      order: [[sortBy, sortOrder]],
+      limit: validatedLimit,
+      offset: offset,
+      distinct: true
+    };
+  
+    // 제목 검색
+    if (title && title.trim() !== '') {
+      queryOptions.where.title = {
+        [Op.like]: `%${title.trim()}%`
+      };
+    }
+  
+    // 현재 날짜 내의 캠페인만 표시
+    const now = new Date();
+    queryOptions.include = queryOptions.include.map(include => {
+      if (include.model === AdCampaign) {
+        include.where = {
+          start_date: { [Op.lte]: now },
+          end_date: { [Op.gte]: now }
+        };
+      }
+      return include;
+    });
+  
+    // 데이터 조회
+    const { count, rows } = await Ad.findAndCountAll(queryOptions);
+  
+    // 응답 데이터 포맷팅 - 일반 사용자에게 필요한 정보만 포함
+    const formattedAds = rows.map(ad => formatPublicAdResponse(ad));
+  
+    // 페이지네이션 메타데이터 계산
+    const totalItems = count;
+    const totalPages = Math.ceil(totalItems / validatedLimit);
+    const hasNext = validatedPage < totalPages;
+    const hasPrevious = validatedPage > 1;
+  
+    return {
+      ads: formattedAds,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        totalItems,
+        totalPages,
+        hasNext,
+        hasPrevious
       }
     };
   }

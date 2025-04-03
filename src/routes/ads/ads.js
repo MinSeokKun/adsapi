@@ -13,7 +13,10 @@ router.get('/api/ads', adController.getAds);
 router.get('/api/display/ads', displayAuth, adController.getDisplayAds);
 
 // 광고 검색
-router.get('/api/ads/search', adController.searchAds);
+router.get('/api/ads/search', verifyToken, isAdmin, adController.searchAds);
+
+// 광고 검색
+router.get('/api/public/ads', adController.getPublicAds);
 
 // 광고 전체 목록 조회
 router.get('/api/ads/list', adController.getAllActiveAds);

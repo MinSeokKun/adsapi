@@ -194,6 +194,47 @@ const adController = {
       });
     }
   },
+
+  getPublicAds: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      path: req.path,
+      query: sanitizeData(req.query)
+    };
+  
+    try {
+      const searchResult = await adService.getPublicAds({
+        title: req.query.title,
+        status: req.query.status,
+        page: req.query.page,
+        limit: req.query.limit,
+        sortBy: req.query.sortBy || 'created_at',
+        sortOrder: req.query.sortOrder || 'DESC'
+      });
+  
+      logger.info('공개 광고 목록 조회 완료', sanitizeData({
+        ...logContext,
+        totalItems: searchResult.pagination.totalItems
+      }));
+  
+      res.json(searchResult);
+    } catch (error) {
+      logger.error('공개 광고 목록 조회 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '광고 목록 조회 중 오류가 발생했습니다',
+        details: process.env.NODE_ENV === 'production' ? undefined : error.message
+      });
+    }
+  },
   
   /**
    * ID로 광고 조회
