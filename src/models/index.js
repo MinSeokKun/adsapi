@@ -12,6 +12,7 @@ const Location = require('./auth/location');
 const AdLocation = require('./ad/adLocation');
 const Display = require('./auth/display');
 const UserActivity = require('./auth/userActivity');
+const AdCampaign = require('./ad/AdCampaign');
 
 // 광고 관련 관계 설정
 Ad.hasMany(AdSchedule, {
@@ -34,6 +35,13 @@ Ad.hasMany(AdLocation, {
   // as: 'targetLocations'
 });
 AdLocation.belongsTo(Ad, {
+  foreignKey: 'ad_id'
+});
+
+Ad.hasOne(AdCampaign, {
+  foreignKey: 'ad_id'
+});
+AdCampaign.belongsTo(Ad, {
   foreignKey: 'ad_id'
 });
   
@@ -150,6 +158,7 @@ module.exports = {
   AdMedia,
   AdSchedule,
   AdLocation,
+  AdCampaign,
   User,
   Salon,
   Display,
