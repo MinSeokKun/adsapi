@@ -3,9 +3,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { syncModels } = require('./src/models');
-const swaggerUi = require('swagger-ui-express');
-const yaml = require('js-yaml');
-const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
 const passport = require('passport');
@@ -18,6 +15,7 @@ const { requestLogger, errorLogger } = require('./src/middleware/logger');
 const logger = require('./src/config/winston');
 const axios = require('axios');
 const app = express();
+const { specs, swaggerUi } = require('./src/config/swagger');
 
 // Security
 const limiter = rateLimit({
@@ -95,77 +93,6 @@ app.use((error, req, res, next) => {
       : err.message
   });
 });
-
-// 스웨거 문서 로드
-const loadSwaggerDocument = () => {
-  try {
-    // 메인 Swagger 파일 로드
-    const mainDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/main.yaml'), 'utf8')
-    );
-
-    // 각 참조된 파일들을 로드하고 병합
-    const authDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/auth.yaml'), 'utf8')
-    );
-    const localauthDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/localauth.yaml'), 'utf8')
-    );
-    const adsDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/ads.yaml'), 'utf8')
-    );
-    const salonDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/salon.yaml'), 'utf8')
-    );
-    const salonAdsDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/salonAds.yaml'), 'utf8')
-    );
-    const adminDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/admin.yaml'), 'utf8')
-    );
-    const planDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/subscription.yaml'), 'utf8')
-    );
-    const displayDoc = yaml.load(
-      fs.readFileSync(path.join(__dirname, 'src/config/swagger/display.yaml'), 'utf8')
-    );
-    // paths와 schemas 병합
-    mainDoc.paths = {
-      ...mainDoc.paths,
-      ...authDoc.paths,
-      ...localauthDoc.paths,
-      ...adsDoc.paths,
-      ...salonDoc.paths,
-      ...salonAdsDoc.paths,
-      ...adminDoc.paths,
-      ...planDoc.paths,
-      ...displayDoc.paths
-    };
-
-    mainDoc.components.schemas = {
-      ...mainDoc.components.schemas,
-      ...authDoc.components.schemas,
-      ...adsDoc.components.schemas,
-      ...salonDoc.components.schemas,
-      ...planDoc.components.schemas,
-      ...displayDoc.components.schemas
-    };
-
-    return mainDoc;
-  } catch (error) {
-    logger.error('Swagger 문서 로드 실패:', { error });
-    throw error;
-  }
-};
-
-// Swagger 설정
-try {
-  const swaggerDocument = loadSwaggerDocument();
-  app.use('/api-docs', verifyToken, isSuperAdmin, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-} catch (error) {
-  console.error(error);
-  logger.error('Swagger 문서 로드 실패:', { error });
-}
 
 // 미들웨어 설정
 app.use(requestLogger);
@@ -246,6 +173,8 @@ app.get('/api/proxy-video', async (req, res) => {
     });
   }
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // 모델 동기화 후 서버 시작
 const startServer = async () => {
