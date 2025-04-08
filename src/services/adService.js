@@ -59,10 +59,6 @@ class AdService {
             attributes: ['url', 'type', 'duration', 'size', 'is_primary']
           }, 
           {
-            model: AdSchedule,
-            required: false
-          },
-          {
             model: AdLocation,
             required: true,
             where: {

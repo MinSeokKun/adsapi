@@ -9,7 +9,7 @@ const displayAuth = async (req, res, next) => {
     }
 
     const access_token = authHeader.split(' ')[1];
-    console.log('display Token', access_token);
+    // console.log('display Token', access_token);
     
     const display = await Display.findOne({
       where: {
