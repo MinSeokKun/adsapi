@@ -955,9 +955,6 @@ async syncAdLocations(adId, targetLocations, transaction) {
       
       if (createNewTransaction) {
         await transaction.commit();
-        
-        // 캠페인 생성/업데이트 후 광고 상태 업데이트
-        await adStatusService.updateAdStatus(adId);
       }
       
       return campaign;

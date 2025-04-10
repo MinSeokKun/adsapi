@@ -4,6 +4,7 @@ const { sanitizeData } = require('../utils/sanitizer');
 const adService = require('../services/adService');
 const mediaService = require('../services/mediaService');
 const activityService = require('../services/userActivityService');
+const adStatusService = require('../services/adStatusService');
 
 /**
    * 스케줄 비교 유틸리티 함수
@@ -524,6 +525,7 @@ const adController = {
               action: 'modified',
               changes: campaignChanges
             };
+            await adStatusService.updateAdStatus(id);
             changedFieldTypes.push('campaign');
           }
         }
