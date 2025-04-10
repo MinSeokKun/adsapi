@@ -72,9 +72,14 @@ class AdStatusService {
       }
       
       // 캠페인이 없는 광고는 모두 inactive로 설정
+      /**
+       * @todo
+       * 캠페인이 없는 광고는 모두 inactive로 설정해야함
+       * 현재 임시로 active로 설정
+       */
       for (const ad of adsWithoutCampaigns) {
-        if (ad.status !== 'inactive') {
-          await ad.update({ status: 'inactive' });
+        if (ad.status !== 'active') {
+          await ad.update({ status: 'active' });
           updatedCount++;
           
           logger.info('캠페인 없는 광고 상태 업데이트', sanitizeData({
