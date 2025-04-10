@@ -24,7 +24,7 @@ class AdService {
         attributes: ['time']
       }],
       where: {
-        is_active: true
+        status: 'active',
       }
     };
 
@@ -80,7 +80,7 @@ class AdService {
           }
         ],
         where: {
-          is_active: true
+          status: 'active'
         }
       };
   
@@ -187,7 +187,7 @@ class AdService {
     try {
       // 활성화된 모든 광고 조회
       const ads = await Ad.findAll({
-        where: { is_active: true },
+        where: { status: 'active' },
         include: [{
           model: AdLocation,
           required: false
@@ -232,7 +232,7 @@ class AdService {
         attributes: ['url', 'type', 'duration', 'size', 'is_primary']
       }],
       where: {
-        is_active: true
+        status: 'active'
       }
     });
 
@@ -417,7 +417,7 @@ class AdService {
         }
       ],
       where: {
-        is_active: true,  // 활성화된 광고만 표시
+        status: 'active',  // 활성화된 광고만 표시
         type: 'sponsor'
       },
       order: [[sortBy, sortOrder]],
@@ -487,7 +487,7 @@ class AdService {
   
     // 광고 조회 (반경 검색 관련 코드 제거)
     const ads = await Ad.findAll({
-      where: { is_active: true },
+      where: { status: 'active' },
       include: [
         {
           model: AdMedia,
@@ -538,7 +538,7 @@ class AdService {
       // 1. 광고 기본 정보 생성
       const ad = await Ad.create({
         title: adData.title,
-        is_active: adData.is_active || true,
+        status: adData.status || 'inactive',
         type: adData.type || 'sponsor'
       }, { transaction });
       
@@ -574,7 +574,7 @@ class AdService {
   /**
    * 광고 수정
    */
-  async updateAd(id, { title, is_active, schedules, media, targetLocations, campaign }, logContext = {}) {
+  async updateAd(id, { title, status, schedules, media, targetLocations, campaign }, logContext = {}) {
     let transaction;
   
     try {
@@ -588,9 +588,9 @@ class AdService {
       // 1. 광고 기본 정보 업데이트
       logger.info('광고 기본 정보 수정', sanitizeData({
         ...logContext,
-        updateFields: { title, is_active }
+        updateFields: { title, status }
       }));
-      await ad.update({ title, is_active }, { transaction });
+      await ad.update({ title, status }, { transaction });
   
       // 2. 미디어 관계 동기화
       if (media !== undefined) {
@@ -1025,7 +1025,7 @@ async syncAdLocations(adId, targetLocations, transaction) {
       },
       include: [{
         model: Ad,
-        where: { is_active: true },
+        where: { status: 'active' },
         include: [{
           model: AdMedia,
           as: 'media'

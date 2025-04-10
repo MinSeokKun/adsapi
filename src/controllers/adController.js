@@ -171,8 +171,6 @@ const adController = {
         sortOrder: req.query.sortOrder
       });
 
-      console.log('query', req.query);
-  
       logger.info('광고 검색 완료', sanitizeData({
         ...logContext,
         totalItems: searchResult.pagination.totalItems
@@ -367,7 +365,7 @@ const adController = {
 
     try {
       const { id } = req.params;
-      const { title, is_active, schedules, media, targetLocations } = req.body;
+      const { title, status, schedules, media, targetLocations, campaign } = req.body;
       
       // 변경 전 광고 데이터 조회
       const originalAd = await adService.getAdById(id);
@@ -379,10 +377,11 @@ const adController = {
 
       const updatedAd = await adService.updateAd(id, {
         title,
-        is_active,
+        status,
         schedules,
         media,
-        targetLocations
+        targetLocations,
+        campaign
       }, logContext);
 
       // 변경 내역 추적을 위한 객체 생성
@@ -398,10 +397,11 @@ const adController = {
         changedFieldTypes.push('basic_info');
       }
 
-      if (is_active !== undefined && originalAd.is_active !== is_active) {
-        changes.is_active = { 
-          from: originalAd.is_active, 
-          to: is_active 
+      // status 변경 확인 (이전의 is_active 대신)
+      if (status !== undefined && originalAd.status !== status) {
+        changes.status = { 
+          from: originalAd.status, 
+          to: status 
         };
         changedFieldTypes.push('status');
       }
@@ -458,6 +458,74 @@ const adController = {
             removed: 0
           };
           changedFieldTypes.push('target_locations');
+        }
+      }
+
+      // 5. 캠페인 변경 확인
+      if (campaign !== undefined) {
+        const originalCampaign = originalAd.AdCampaign;
+        
+        if (campaign === null && originalCampaign) {
+          // 캠페인 삭제
+          changes.campaign = {
+            action: 'removed',
+            previousBudget: originalCampaign.budget,
+            previousDuration: `${originalCampaign.start_date} ~ ${originalCampaign.end_date}`
+          };
+          changedFieldTypes.push('campaign');
+        } else if (campaign && !originalCampaign) {
+          // 새 캠페인 추가
+          changes.campaign = {
+            action: 'added',
+            budget: campaign.budget,
+            dailyBudget: campaign.daily_budget,
+            duration: `${campaign.start_date} ~ ${campaign.end_date}`
+          };
+          changedFieldTypes.push('campaign');
+        } else if (campaign && originalCampaign) {
+          // 캠페인 수정
+          const campaignChanges = {};
+          let hasCampaignChanges = false;
+          
+          if (campaign.budget != originalCampaign.budget) {
+            campaignChanges.budget = {
+              from: originalCampaign.budget,
+              to: campaign.budget
+            };
+            hasCampaignChanges = true;
+          }
+          
+          if (campaign.daily_budget != originalCampaign.daily_budget) {
+            campaignChanges.dailyBudget = {
+              from: originalCampaign.daily_budget,
+              to: campaign.daily_budget
+            };
+            hasCampaignChanges = true;
+          }
+          
+          if (campaign.start_date != originalCampaign.start_date) {
+            campaignChanges.startDate = {
+              from: originalCampaign.start_date,
+              to: campaign.start_date
+            };
+            hasCampaignChanges = true;
+          }
+          
+          if (campaign.end_date != originalCampaign.end_date) {
+            campaignChanges.endDate = {
+              from: originalCampaign.end_date,
+              to: campaign.end_date
+            };
+            hasCampaignChanges = true;
+          }
+          
+          if (hasCampaignChanges) {
+            changes.campaign = {
+              action: 'modified',
+              changes: campaignChanges
+            };
+            changedFieldTypes.push('campaign');
+          }
         }
       }
 
