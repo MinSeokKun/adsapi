@@ -396,6 +396,24 @@
  *                       type: string
  *                     district:
  *                       type: string
+ *               campaign:
+ *                 type: object
+ *                 description: 광고 캠페인 정보 (선택 사항)
+ *                 properties:
+ *                   budget:
+ *                     type: number
+ *                     description: 캠페인 총 예산
+ *                   daily_budget:
+ *                     type: number
+ *                     description: 일일 예산 (선택 사항)
+ *                   start_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: 캠페인 시작일
+ *                   end_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: 캠페인 종료일
  *     responses:
  *       201:
  *         description: 광고 등록 성공
@@ -504,6 +522,25 @@
  *                       type: string
  *                     district:
  *                       type: string
+ *               campaign:
+ *                 type: object
+ *                 description: 광고 캠페인 정보. null인 경우 캠페인 삭제
+ *                 nullable: true
+ *                 properties:
+ *                   budget:
+ *                     type: number
+ *                     description: 캠페인 총 예산
+ *                   daily_budget:
+ *                     type: number
+ *                     description: 일일 예산 (선택 사항)
+ *                   start_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: 캠페인 시작일
+ *                   end_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: 캠페인 종료일
  *     responses:
  *       200:
  *         description: 광고 수정 성공
@@ -675,6 +712,187 @@
  *         description: 인증되지 않음
  *       404:
  *         description: 광고를 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Campaign:
+ *       type: object
+ *       required:
+ *         - budget
+ *         - start_date
+ *         - end_date
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 캠페인 ID
+ *         budget:
+ *           type: number
+ *           format: float
+ *           description: 캠페인 총 예산
+ *         daily_budget:
+ *           type: number
+ *           format: float
+ *           description: 일일 예산 (선택 사항)
+ *         start_date:
+ *           type: string
+ *           format: date-time
+ *           description: 캠페인 시작일
+ *         end_date:
+ *           type: string
+ *           format: date-time
+ *           description: 캠페인 종료일
+ *         isActive:
+ *           type: boolean
+ *           description: 현재 활성화 상태 여부
+ */
+
+/**
+ * @swagger
+ * /api/ads/{id}/campaign:
+ *   post:
+ *     summary: 광고 캠페인 생성 또는 업데이트
+ *     description: 특정 광고에 대한 캠페인을 생성하거나 업데이트합니다.
+ *     tags: [Advertisements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 광고 ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - budget
+ *               - start_date
+ *               - end_date
+ *             properties:
+ *               budget:
+ *                 type: number
+ *                 format: float
+ *                 description: 캠페인 총 예산
+ *               daily_budget:
+ *                 type: number
+ *                 format: float
+ *                 description: 일일 예산 (선택 사항)
+ *               start_date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: 캠페인 시작일
+ *               end_date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: 캠페인 종료일
+ *     responses:
+ *       200:
+ *         description: 캠페인 생성/업데이트 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 campaign:
+ *                   $ref: '#/components/schemas/Campaign'
+ *       400:
+ *         description: 잘못된 요청 (예산이 0보다 작거나, 종료일이 시작일보다 빠른 경우 등)
+ *       401:
+ *         description: 인증되지 않음
+ *       404:
+ *         description: 광고를 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
+
+/**
+ * @swagger
+ * /api/ads/{id}/campaign:
+ *   delete:
+ *     summary: 광고 캠페인 삭제
+ *     description: 특정 광고의 캠페인을 삭제합니다.
+ *     tags: [Advertisements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 광고 ID
+ *     responses:
+ *       200:
+ *         description: 캠페인 삭제 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: 인증되지 않음
+ *       404:
+ *         description: 광고를 찾을 수 없거나 해당 광고에 캠페인이 존재하지 않음
+ *       500:
+ *         description: 서버 오류
+ */
+
+/**
+ * @swagger
+ * /api/ads/campaigns/active:
+ *   get:
+ *     summary: 활성 캠페인 목록 조회
+ *     description: 현재 활성화된 모든 캠페인 목록을 조회합니다. 활성화된 캠페인은 현재 날짜가 캠페인의 시작일과 종료일 사이에 있는 경우입니다.
+ *     tags: [Advertisements]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 활성 캠페인 목록 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 campaigns:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: 캠페인 ID
+ *                       budget:
+ *                         type: number
+ *                         description: 총 예산
+ *                       daily_budget:
+ *                         type: number
+ *                         description: 일일 예산
+ *                       start_date:
+ *                         type: string
+ *                         format: date-time
+ *                         description: 시작일
+ *                       end_date:
+ *                         type: string
+ *                         format: date-time
+ *                         description: 종료일
+ *                       ad:
+ *                         $ref: '#/components/schemas/Ad'
+ *       401:
+ *         description: 인증되지 않음
  *       500:
  *         description: 서버 오류
  */
