@@ -77,11 +77,12 @@ const displayController = {
 
     try {
       const { device_id, access_token } = req.body;
-      
+      console.log(device_id, access_token);
       await displayService.activeDisplay(device_id, access_token, logContext);
 
       res.json({ message: '디스플레이가 활성화되었습니다' });
     } catch (error) {
+      console.log(error);
       logger.error('디스플레이 활성화 에러', sanitizeData({
         ...logContext,
         error: {
