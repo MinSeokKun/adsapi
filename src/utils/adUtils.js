@@ -121,40 +121,49 @@ async function processSalonAdMedia(files, adId, salonId, transaction) {
  * 광고 정보 포맷팅
  */
 function formatAdResponse(ad) {
-  if (!ad) return null;
-
-  const adData = ad.dataValues || ad;
-  const mediaArray = adData.media ? (Array.isArray(adData.media) ? adData.media : [adData.media]) : [];
-  
-  // 캠페인 데이터 처리
-  const campaignData = adData.AdCampaign ? adData.AdCampaign.dataValues || adData.AdCampaign : null;
-  
   return {
-    id: adData.id,
-    title: adData.title,
-    type: adData.type,
-    salon_id: adData.salon_id,
-    created_at: adData.created_at,
-    media: mediaArray.map(m => ({
-      url: m.dataValues.url,
-      type: m.dataValues.type,
-      duration: m.dataValues.duration,
-      size: m.dataValues.size,
-      is_primary: m.dataValues.is_primary
-    })),
-    schedules: adData.AdSchedules ? 
-      adData.AdSchedules.map(schedule => 
-        parseInt(schedule.dataValues.time.split(':')[0])
-      ).sort((a, b) => a - b) 
+    id: ad.id,
+    title: ad.title,
+    type: ad.type,
+    is_active: ad.is_active,
+    salon_id: ad.salon_id,
+    createdAt: ad.createdAt,
+    updatedAt: ad.updatedAt,
+    media: Array.isArray(ad.media) 
+      ? ad.media.map(m => ({
+          id: m.id,
+          url: m.url,
+          type: m.type,
+          duration: m.duration,
+          size: m.size,
+          is_primary: m.is_primary
+        }))
       : [],
-    // 캠페인 정보 추가
-    campaign: campaignData ? {
-      id: campaignData.id,
-      budget: campaignData.budget,
-      daily_budget: campaignData.daily_budget,
-      start_date: campaignData.start_date,
-      end_date: campaignData.end_date
-    } : null
+    schedules: ad.AdSchedules
+      ? ad.AdSchedules.map(s => ({
+          id: s.id,
+          time: s.time
+        }))
+      : [],
+    targetLocations: ad.AdLocations
+      ? ad.AdLocations.map(l => ({
+          id: l.id,
+          target_type: l.target_type,
+          city: l.city,
+          district: l.district
+        }))
+      : [],
+    campaign: ad.AdCampaign
+      ? {
+          id: ad.AdCampaign.id,
+          budget: ad.AdCampaign.budget,
+          daily_budget: ad.AdCampaign.daily_budget,
+          start_date: ad.AdCampaign.start_date,
+          end_date: ad.AdCampaign.end_date,
+          isActive: new Date() >= new Date(ad.AdCampaign.start_date) && 
+                    new Date() <= new Date(ad.AdCampaign.end_date)
+        }
+      : null
   };
 }
 
@@ -266,18 +275,31 @@ async function updateAdMedia(options) {
  * 광고 정보 조회
  */
 async function getAdDetails(adId) {
-  return Ad.findByPk(adId, {
-    include: [{
-      model: AdMedia,
-      as: 'media'
-    }, {
-      model: AdSchedule,
-      required: false,
-      attributes: ['time']
-    }, {
-      model: AdLocation
-    }],
+  const ad = await Ad.findByPk(adId, {
+    include: [
+      {
+        model: AdMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'type', 'duration', 'size', 'is_primary']
+      },
+      {
+        model: AdSchedule,
+        attributes: ['id', 'time']
+      },
+      {
+        model: AdLocation,
+        attributes: ['id', 'target_type', 'city', 'district']
+      },
+      {
+        model: AdCampaign,
+        attributes: ['id', 'budget', 'daily_budget', 'start_date', 'end_date']
+      }
+    ]
   });
+  
+  if (!ad) return null;
+  
+  return formatAdResponse(ad);
 }
 
 module.exports = {

@@ -553,6 +553,11 @@ class AdService {
         await this.syncAdLocations(ad.id, adData.targetLocations, transaction, logContext);
       }
       
+      // 4. 캠페인 정보 생성 (있는 경우)
+      if (adData.campaign) {
+        await this.createOrUpdateCampaign(ad.id, adData.campaign, transaction);
+      }
+      
       await transaction.commit();
       transaction = null;
       
@@ -570,9 +575,9 @@ class AdService {
   /**
    * 광고 수정
    */
-  async updateAd(id, { title, is_active, schedules, media, targetLocations }, logContext = {}) {
+  async updateAd(id, { title, is_active, schedules, media, targetLocations, campaign }, logContext = {}) {
     let transaction;
-
+  
     try {
       transaction = await sequelize.transaction();
       const ad = await Ad.findByPk(id);
@@ -587,25 +592,36 @@ class AdService {
         updateFields: { title, is_active }
       }));
       await ad.update({ title, is_active }, { transaction });
-
+  
       // 2. 미디어 관계 동기화
       if (media !== undefined) {
         await this.syncAdMedia(id, media, transaction, logContext);
       }
-
+  
       // 3. 스케줄 업데이트
       if (schedules !== undefined) {
         await this.syncAdSchedules(id, schedules, transaction, logContext);
       }
-
+  
       // 4. 타겟 위치 동기화
       if (targetLocations !== undefined) {
         await this.syncAdLocations(id, targetLocations, transaction, logContext);
       }
-
+      
+      // 5. 캠페인 정보 업데이트
+      if (campaign !== undefined) {
+        if (campaign === null) {
+          // 캠페인 삭제 요청
+          await this.deleteCampaign(id, transaction);
+        } else {
+          // 캠페인 생성 또는 업데이트
+          await this.createOrUpdateCampaign(id, campaign, transaction);
+        }
+      }
+  
       await transaction.commit();
       transaction = null;
-
+  
       // 업데이트된 광고 정보 조회
       const updatedAd = await getAdDetails(id);
       return updatedAd;
@@ -854,6 +870,160 @@ async syncAdLocations(adId, targetLocations, transaction) {
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * 광고 캠페인 생성 또는 업데이트
+   */
+  async createOrUpdateCampaign(adId, campaignData, transaction = null) {
+    const createNewTransaction = !transaction;
+    
+    try {
+      if (createNewTransaction) {
+        transaction = await sequelize.transaction();
+      }
+      
+      // 기존 캠페인 조회
+      const existingCampaign = await AdCampaign.findOne({
+        where: { ad_id: adId },
+        transaction
+      });
+      
+      // 캠페인 데이터 검증
+      if (!campaignData.budget || !campaignData.start_date || !campaignData.end_date) {
+        throw new Error('예산, 시작일, 종료일은 필수 항목입니다.');
+      }
+      
+      // 날짜 유효성 검사
+      const startDate = new Date(campaignData.start_date);
+      const endDate = new Date(campaignData.end_date);
+      
+      if (startDate >= endDate) {
+        throw new Error('종료일은 시작일보다 이후여야 합니다.');
+      }
+      
+      // 예산 유효성 검사
+      if (parseFloat(campaignData.budget) <= 0) {
+        throw new Error('예산은 0보다 커야 합니다.');
+      }
+      
+      // 일일 예산 검증 (설정된 경우)
+      if (campaignData.daily_budget && parseFloat(campaignData.daily_budget) <= 0) {
+        throw new Error('일일 예산은 0보다 커야 합니다.');
+      }
+      
+      // 일일 예산이 전체 예산보다 크면 안됨
+      if (campaignData.daily_budget && parseFloat(campaignData.daily_budget) > parseFloat(campaignData.budget)) {
+        throw new Error('일일 예산은 전체 예산보다 클 수 없습니다.');
+      }
+      
+      let campaign;
+      
+      if (existingCampaign) {
+        // 기존 캠페인 업데이트
+        campaign = await existingCampaign.update({
+          budget: campaignData.budget,
+          daily_budget: campaignData.daily_budget || null,
+          start_date: startDate,
+          end_date: endDate
+        }, { transaction });
+        
+        logger.info('광고 캠페인 업데이트', {
+          adId,
+          campaignId: campaign.id
+        });
+      } else {
+        // 새 캠페인 생성
+        campaign = await AdCampaign.create({
+          ad_id: adId,
+          budget: campaignData.budget,
+          daily_budget: campaignData.daily_budget || null,
+          start_date: startDate,
+          end_date: endDate
+        }, { transaction });
+        
+        logger.info('광고 캠페인 생성', {
+          adId,
+          campaignId: campaign.id
+        });
+      }
+      
+      if (createNewTransaction) {
+        await transaction.commit();
+      }
+      
+      return campaign;
+    } catch (error) {
+      if (createNewTransaction && transaction) {
+        await transaction.rollback();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 광고 캠페인 삭제
+   */
+  async deleteCampaign(adId, transaction = null) {
+    const createNewTransaction = !transaction;
+    
+    try {
+      if (createNewTransaction) {
+        transaction = await sequelize.transaction();
+      }
+      
+      await AdCampaign.destroy({
+        where: { ad_id: adId },
+        transaction
+      });
+      
+      if (createNewTransaction) {
+        await transaction.commit();
+      }
+      
+      return true;
+    } catch (error) {
+      if (createNewTransaction && transaction) {
+        await transaction.rollback();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 광고 캠페인 조회
+   */
+  async getCampaign(adId) {
+    const campaign = await AdCampaign.findOne({
+      where: { ad_id: adId }
+    });
+    
+    return campaign;
+  }
+
+  /**
+   * 활성 캠페인 목록 조회
+   * 현재 진행 중인 캠페인만 반환
+   */
+  async getActiveCampaigns() {
+    const now = new Date();
+    
+    const campaigns = await AdCampaign.findAll({
+      where: {
+        start_date: { [Op.lte]: now },
+        end_date: { [Op.gte]: now }
+      },
+      include: [{
+        model: Ad,
+        where: { is_active: true },
+        include: [{
+          model: AdMedia,
+          as: 'media'
+        }]
+      }]
+    });
+    
+    return campaigns;
   }
 }
 

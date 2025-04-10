@@ -54,4 +54,25 @@ router.post(
   adController.addMediaToAd
 );
 
+// 광고 캠페인 생성/업데이트
+router.post(
+  '/api/ads/:id/campaign', 
+  verifyToken, 
+  adController.createOrUpdateCampaign
+);
+
+// 광고 캠페인 삭제
+router.delete(
+  '/api/ads/:id/campaign', 
+  verifyToken, 
+  adController.deleteCampaign
+);
+
+// 활성 캠페인 목록 조회
+router.get(
+  '/api/ads/campaigns/active', 
+  verifyToken, 
+  adController.getActiveCampaigns
+);
+
 module.exports = router;

@@ -615,6 +615,153 @@ const adController = {
     }
   },
 
+  /**
+   * 광고 캠페인 생성 또는 업데이트
+   */
+  createOrUpdateCampaign: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      adId: req.params.id,
+      path: req.path,
+      requestData: sanitizeData(req.body)
+    };
+
+    try {
+      const { id } = req.params;
+      const campaign = req.body;
+      
+      // 광고 존재 확인
+      const ad = await Ad.findByPk(id);
+      if (!ad) {
+        logger.warn('존재하지 않는 광고에 캠페인 생성 시도', sanitizeData(logContext));
+        return res.status(404).json({ message: '광고를 찾을 수 없습니다.' });
+      }
+      
+      const result = await adService.createOrUpdateCampaign(id, campaign);
+      
+      // 활동 기록
+      await activityService.recordActivity(req.user.id, 'ad_campaign_update', {
+        adId: id,
+        ip: req.ip,
+        adTitle: ad.title,
+        campaignId: result.id,
+        budget: result.budget,
+        startDate: result.start_date,
+        endDate: result.end_date
+      });
+      
+      res.json({
+        message: '광고 캠페인이 성공적으로 저장되었습니다',
+        campaign: result
+      });
+    } catch (error) {
+      logger.error('광고 캠페인 저장 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '광고 캠페인 저장 중 오류가 발생했습니다',
+        details: error.message
+      });
+    }
+  },
+
+  /**
+   * 광고 캠페인 삭제
+   */
+  deleteCampaign: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      adId: req.params.id,
+      path: req.path
+    };
+
+    try {
+      const { id } = req.params;
+      
+      // 광고 존재 확인
+      const ad = await Ad.findByPk(id);
+      if (!ad) {
+        logger.warn('존재하지 않는 광고의 캠페인 삭제 시도', sanitizeData(logContext));
+        return res.status(404).json({ message: '광고를 찾을 수 없습니다.' });
+      }
+      
+      // 캠페인 존재 확인
+      const campaign = await adService.getCampaign(id);
+      if (!campaign) {
+        logger.warn('존재하지 않는 캠페인 삭제 시도', sanitizeData(logContext));
+        return res.status(404).json({ message: '해당 광고에 캠페인이 존재하지 않습니다.' });
+      }
+      
+      await adService.deleteCampaign(id);
+      
+      // 활동 기록
+      await activityService.recordActivity(req.user.id, 'ad_campaign_delete', {
+        adId: id,
+        ip: req.ip,
+        adTitle: ad.title
+      });
+      
+      res.json({ message: '광고 캠페인이 성공적으로 삭제되었습니다' });
+    } catch (error) {
+      logger.error('광고 캠페인 삭제 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '광고 캠페인 삭제 중 오류가 발생했습니다',
+        details: error.message
+      });
+    }
+  },
+
+  /**
+   * 활성 캠페인 목록 조회
+   */
+  getActiveCampaigns: async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      path: req.path
+    };
+
+    try {
+      const campaigns = await adService.getActiveCampaigns();
+      
+      logger.info('활성 캠페인 목록 조회', sanitizeData({
+        ...logContext,
+        campaignsCount: campaigns.length
+      }));
+      
+      res.json({ campaigns });
+    } catch (error) {
+      logger.error('활성 캠페인 목록 조회 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '활성 캠페인 목록 조회 중 오류가 발생했습니다',
+        details: error.message
+      });
+    }
+  }
   
 };
 
