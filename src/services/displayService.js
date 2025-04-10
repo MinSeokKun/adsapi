@@ -45,37 +45,44 @@ class DisplayService {
     return display;
   }
 
-  // 디스플레이 활성화
   async activeDisplay(device_id, access_token, logContext) {
     let transaction;
     try {
       transaction = await sequelize.transaction();
-
+  
       const display = await Display.findOne({
         where: {
           device_id,
           access_token,
-          status: 'inactive'
         }
       });
-
+  
       if (!display) {
         const error = new Error('Display not found');
         error.statusCode = 404;
         logger.warn('디스플레이를 찾을 수 없습니다.', sanitizeData(logContext));
         throw error;
+      } else if (display.status === 'active') {
+        // 트랜잭션을 커밋하고 display 반환
+        await display.update({
+          last_ping: new Date()
+        }, { transaction }
+        )
+        await transaction.commit();
+        return display;
       };
-
+  
       await display.update({
         status: 'active',
         last_ping: new Date()
       }, { transaction });
-
-      transaction.commit();
-
+  
+      await transaction.commit();
+  
       return display;
     } catch (error) {
-      await transaction.rollback();
+      // transaction이 정의된 경우에만 rollback 실행
+      if (transaction) await transaction.rollback();
       throw error;
     }
   };
