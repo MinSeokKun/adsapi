@@ -16,6 +16,7 @@ const logger = require('./src/config/winston');
 const axios = require('axios');
 const app = express();
 const { specs, swaggerUi } = require('./src/config/swagger');
+const adStatusScheduler = require('./src/schedulers/adStatusScheduler');
 
 // Security
 const limiter = rateLimit({
@@ -190,9 +191,12 @@ const startServer = async () => {
     app.listen(port, '0.0.0.0', () => {
       console.log(`서버가 포트 ${port}에서 실행 중입니다.`);
       console.log(`Swagger 문서는 http://localhost:${port}/api-docs 에서 확인할 수 있습니다.`);
+      
+      // 스케줄러 로드 (여기서는 단순히 모듈을 import하는 것만으로도 스케줄러가 시작됨)
+      console.log('광고 상태 업데이트 스케줄러 초기화 완료');
     });
   } catch (error) {
-    logger.error('Swagger 문서 로드 실패:', { error });
+    logger.error('서버 시작 실패:', { error });
     process.exit(1);
   }
 };

@@ -14,9 +14,10 @@ const Ad = sequelize.define('Ad', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  is_active: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+  status: {
+    type: DataTypes.ENUM('active', 'pending', 'paused', 'inactive'),
+    allowNull: false,
+    defaultValue: 'inactive'
   }
 }, {
   tableName: 'ads',

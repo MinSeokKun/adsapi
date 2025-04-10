@@ -75,4 +75,68 @@ router.get(
   adController.getActiveCampaigns
 );
 
+// 광고 상태 수동 변경 API
+router.patch(
+  '/api/ads/:id/status',
+  verifyToken,
+  isAdmin,
+  async (req, res) => {
+    const logContext = {
+      requestId: req.id,
+      userId: req.user?.id,
+      adId: req.params.id,
+      status: req.body.status,
+      path: req.path
+    };
+
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      // 유효한 상태 검증
+      const validStatuses = ['active', 'pending', 'paused', 'inactive'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          error: '유효하지 않은 상태입니다',
+          validStatuses
+        });
+      }
+      
+      const updatedAd = await adStatusService.manuallyUpdateAdStatus(id, status);
+      
+      // 활동 기록
+      await activityService.recordActivity(req.user.id, 'ad_status_update', {
+        adId: id,
+        ip: req.ip,
+        adTitle: updatedAd.title,
+        oldStatus: updatedAd.previous('status'),
+        newStatus: status
+      });
+      
+      res.json({
+        message: '광고 상태가 성공적으로 업데이트되었습니다',
+        ad: {
+          id: updatedAd.id,
+          title: updatedAd.title,
+          status: updatedAd.status
+        }
+      });
+    } catch (error) {
+      logger.error('광고 상태 업데이트 실패', sanitizeData({
+        ...logContext,
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+        }
+      }));
+      
+      res.status(500).json({
+        error: '광고 상태 업데이트 중 오류가 발생했습니다',
+        details: error.message
+      });
+    }
+  }
+);
+
 module.exports = router;

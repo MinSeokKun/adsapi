@@ -1,7 +1,7 @@
 // src/utils/adUtils.js
 const { createMediaInfo } = require('./mediaUtils');
 const { storage, STORAGE_PATHS } = require('../config/storage');
-const { AdMedia, Ad, AdSchedule, AdLocation } = require('../models');
+const { AdMedia, Ad, AdSchedule, AdLocation, AdCampaign } = require('../models');
 
 function parseSchedules (schedulesInput) {
   if (!schedulesInput) return [];

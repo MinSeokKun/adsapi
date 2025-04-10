@@ -6,6 +6,7 @@ const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
 const { storage } = require('../config/storage')
 const { Op } = require('sequelize');
+const adStatusService = require('./adStatusService');
 
 class AdService {
   /**
@@ -318,10 +319,8 @@ class AdService {
     }
 
     // 광고 상태 필터링
-    if (status === 'active') {
-      whereConditions.is_active = true;
-    } else if (status === 'inactive') {
-      whereConditions.is_active = false;
+    if (status && status !== 'all') {
+      whereConditions.status = status;
     }
 
     // 미용실 ID 필터링
@@ -857,12 +856,18 @@ async syncAdLocations(adId, targetLocations, transaction) {
         include: [{
           model: AdMedia,
           as: 'media'
-        }, {
+        }, 
+        {
           model: AdSchedule,
           required: false,
           attributes: ['id', 'time']
-        }, {
+        }, 
+        {
           model: AdLocation
+        },
+        {
+          model: AdCampaign,
+          required: false
         }]
       })
 
@@ -918,7 +923,7 @@ async syncAdLocations(adId, targetLocations, transaction) {
       }
       
       let campaign;
-      
+  
       if (existingCampaign) {
         // 기존 캠페인 업데이트
         campaign = await existingCampaign.update({
@@ -950,6 +955,9 @@ async syncAdLocations(adId, targetLocations, transaction) {
       
       if (createNewTransaction) {
         await transaction.commit();
+        
+        // 캠페인 생성/업데이트 후 광고 상태 업데이트
+        await adStatusService.updateAdStatus(adId);
       }
       
       return campaign;
@@ -979,6 +987,8 @@ async syncAdLocations(adId, targetLocations, transaction) {
       
       if (createNewTransaction) {
         await transaction.commit();
+        // 캠페인 삭제 후 광고 상태 업데이트
+        await adStatusService.updateAdStatus(adId);
       }
       
       return true;

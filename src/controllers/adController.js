@@ -170,6 +170,8 @@ const adController = {
         sortBy: req.query.sortBy,
         sortOrder: req.query.sortOrder
       });
+
+      console.log('query', req.query);
   
       logger.info('광고 검색 완료', sanitizeData({
         ...logContext,
