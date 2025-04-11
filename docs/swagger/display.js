@@ -26,7 +26,7 @@
  *             properties:
  *               name:
  *                 type: string
- *                 description: 디스플레이 이름 (예시: 입구, 대기실)
+ *                 description: 디스플레이 이름 (예시 - 입구, 대기실)
  *               salon_id:
  *                 type: integer
  *                 description: 미용실 ID

@@ -882,7 +882,7 @@ async syncAdLocations(adId, targetLocations, transaction) {
    */
   async createOrUpdateCampaign(adId, campaignData, transaction = null) {
     const createNewTransaction = !transaction;
-    
+
     try {
       if (createNewTransaction) {
         transaction = await sequelize.transaction();
@@ -899,9 +899,8 @@ async syncAdLocations(adId, targetLocations, transaction) {
         throw new Error('예산, 시작일, 종료일은 필수 항목입니다.');
       }
       
-      // 날짜 유효성 검사
-      const startDate = new Date(campaignData.start_date);
-      const endDate = new Date(campaignData.end_date);
+      let startDate = new Date(campaignData.start_date);
+      let endDate = new Date(campaignData.end_date);
       
       if (startDate >= endDate) {
         throw new Error('종료일은 시작일보다 이후여야 합니다.');
