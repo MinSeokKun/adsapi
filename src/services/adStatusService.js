@@ -1,5 +1,6 @@
 // src/services/adStatusService.js
 const { Ad, AdCampaign } = require('../models');
+const sequelize = require('../config/database');
 const { Op } = require('sequelize');
 const logger = require('../config/winston');
 const { sanitizeData } = require('../utils/sanitizer');
@@ -32,9 +33,9 @@ class AdStatusService {
       const adsWithoutCampaigns = await Ad.findAll({
         include: [{
           model: AdCampaign,
-          required: false,
-          where: { id: null }
-        }]
+          required: false
+        }],
+        where: sequelize.literal('`AdCampaign`.`id` IS NULL')
       });
       
       let updatedCount = 0;

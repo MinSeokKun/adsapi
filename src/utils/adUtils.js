@@ -129,6 +129,7 @@ function formatAdResponse(ad) {
     salon_id: ad.salon_id,
     createdAt: ad.createdAt,
     updatedAt: ad.updatedAt,
+    status: ad.status,
     media: Array.isArray(ad.media) 
       ? ad.media.map(m => ({
           id: m.id,
