@@ -109,7 +109,7 @@
  *                     description: 미용실 이름
  *                   business_hours:
  *                     type: string
- *                     description: 영업 시간 (예: 10:00-20:00)
+ *                     description: 영업 시간 (예 10:00-20:00)
  *                   business_number:
  *                     type: string
  *                     description: 사업자 등록번호 (10자리)

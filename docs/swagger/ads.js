@@ -80,7 +80,7 @@
  *         name: time
  *         schema:
  *           type: string
- *         description: 시간 필터 (예: "13"은 13시 광고를 의미함)
+ *           description: 시간 필터 (예시 - "13"은 13시 광고를 의미함)
  *     responses:
  *       200:
  *         description: 광고 목록 조회 성공
@@ -120,7 +120,7 @@
  *         name: time
  *         schema:
  *           type: string
- *         description: 시간 필터 (예: "13"은 13시 광고를 의미함)
+ *           description: 시간 필터 (예시 - "13"은 13시 광고를 의미함)
  *     responses:
  *       200:
  *         description: 디스플레이용 광고 목록 조회 성공
