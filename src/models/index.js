@@ -13,6 +13,7 @@ const AdLocation = require('./ad/adLocation');
 const Display = require('./auth/display');
 const UserActivity = require('./auth/userActivity');
 const AdCampaign = require('./ad/AdCampaign');
+const Staff = require('./auth/staff');
 
 // 광고 관련 관계 설정
 Ad.hasMany(AdSchedule, {
@@ -63,6 +64,18 @@ Salon.hasOne(Location, {
   as: 'location'
 });
 Location.belongsTo(Salon, {
+  foreignKey: 'salon_id',
+  as: 'salon'
+});
+
+Salon.hasMany(Staff, {
+  foreignKey:   {
+    name: 'salon_id',
+    allowNull: false
+  },
+  as: 'staffs'
+});
+Staff.belongsTo(Salon, {
   foreignKey: 'salon_id',
   as: 'salon'
 });
@@ -161,6 +174,7 @@ module.exports = {
   AdCampaign,
   User,
   Salon,
+  Staff,
   Display,
   Location,
   Payment,
