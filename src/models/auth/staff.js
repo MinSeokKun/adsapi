@@ -16,7 +16,8 @@ const Staff = sequelize.define('Staff', {
     }
 },
 {
-    tableName: 'staffs'
+    tableName: 'staffs',
+    timestamps: false,
 });
 
 module.exports = Staff;

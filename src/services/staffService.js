@@ -12,3 +12,5 @@ class StaffService {
         });
     };
 }
+
+module.exports = new StaffService();

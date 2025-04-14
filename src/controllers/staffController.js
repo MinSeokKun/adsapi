@@ -13,7 +13,7 @@ const staffController = {
     };
 
     try {
-      const staffs = await StaffService.getAllStaff(req.id);
+      const staffs = await StaffService.getAllStaffs(req.id);
 
       logger.info('스태프프 목록 조회 성공', sanitizeData({
           ...logContext,
