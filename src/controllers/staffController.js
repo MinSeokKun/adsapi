@@ -21,7 +21,7 @@ const staffController = {
     };
 
     try {
-      const staffs = await StaffService.getAllStaffs(req.id);
+      const staffs = await StaffService.getAllStaffs(req.params.id);
 
       logger.info('스태프 목록 조회 성공', sanitizeData({
           ...logContext,
@@ -67,7 +67,7 @@ const staffController = {
       }
 
       // 스태프 생성
-      const newStaff = await StaffService.createstaff(
+      const newStaff = await StaffService.createStaff(
         name,
         position,
         career_years,
@@ -80,11 +80,11 @@ const staffController = {
       }));
 
       // 활동 로깅
-      // await userActivityService.recordActivity(req.user?.id, ACTIVITY_TYPES.STAFF_CREATE, {
-      //   staff_id: newStaff.id,
-      //   staff_name: newStaff.name,
-      //   ip: req.ip
-      // }); 
+      await userActivityService.recordActivity(req.user?.id, ACTIVITY_TYPES.STAFF_CREATED, {
+        staff_id: newStaff.id,
+        staff_name: newStaff.name,
+        ip: req.ip
+      }); 
       
       res.status(201).json({
         message: "스태프가 등록되었습니다.",
@@ -121,20 +121,23 @@ const staffController = {
     };
 
     try {
-      const { id } = req.params;
+      // const { id } = req.params;
       const { name, position, career_years } = req.body;
+      const salonId = req.params.salonId;
+      const staffId = req.params.staffId;
 
       // to do, 유효성 검사
       if (!name && !position && !career_years) {
         return res.status(400).json({ message: "업데이트 정보 입력" });
       }
 
-      if (!await salonService.checkSalonOwnership(req.user.id, staff.salon_id)) {
+      // 인증 체크
+      if (!await salonService.checkSalonOwnership(req.user.id, salonId)) {
         logger.warn('미용실 접근 권한이 없습니다.', sanitizeData(logContext));
         return res.status(403).json({ message: '권한이 없습니다' });
       }
 
-      const updatedStaff = await StaffService.updateStaff(id, {
+      const updatedStaff = await StaffService.updateStaff(staffId, {
         ...(name && { name }),
         ...(position && { position }),
         ...(career_years && { career_years })
@@ -146,10 +149,10 @@ const staffController = {
       }));
 
       // 활동 로깅
-      // await userActivityService.recordActivity(req.user.id, ACTIVITY_TYPES.STAFF_UPDATE, {
-      //   staff_id: updatedStaff.id,
-      //   ip: req.ip
-      // });
+      await userActivityService.recordActivity(req.user.id, ACTIVITY_TYPES.STAFF_UPDATED, {
+        staff_id: updatedStaff.id,
+        ip: req.ip
+      });
   
       res.status(200).json({
         message: "스태프 정보가 수정되었습니다.",
@@ -187,20 +190,28 @@ const staffController = {
     };
 
     try {
-      const { id } = req.params;
+      // const { id } = req.params;
+      const salonId = req.params.salonId;
+      const staffId = req.params.staffId;
 
-      await StaffService.deleteStaff(id);
+      // 인증 체크
+      if (!await salonService.checkSalonOwnership(req.user.id, salonId)) {
+        logger.warn('미용실 접근 권한이 없습니다.', sanitizeData(logContext));
+        return res.status(403).json({ message: '권한이 없습니다' });
+      }
+    
+      const deletedStaff = await StaffService.deleteStaff(staffId);
 
       logger.info('스태프 삭제 성공', sanitizeData({
         ...logContext,
-        staffId: id
+        staffId: staffId
       }));
 
-      // await userActivityService.recordActivity(req.user.id, ACTIVITY_TYPES.STAFF_DELETE, {
-      //   staff_id: deletedStaff.id,
-      //   staff_name: deletedStaff.name,
-      //   ip: req.ip
-      // });
+      await userActivityService.recordActivity(req.user.id, ACTIVITY_TYPES.STAFF_DELETED, {
+        staff_id: deletedStaff.id,
+        staff_name: deletedStaff.name,
+        ip: req.ip
+      });
   
       res.status(200).json({
         message: "스태프가 삭제되었습니다."

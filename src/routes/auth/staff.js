@@ -11,9 +11,9 @@ router.post('/api/staff/:id', verifyToken, staffController.createStaff);
 router.get('/api/staff/:id', staffController.getAllStaff);
 
 // 스태프 수정
-router.put('/api/staff/:id', staffController.updateStaff);
+router.put('/api/staff/:salonId/:staffId', verifyToken, staffController.updateStaff);
 
 // 스태프 삭제
-router.delete('/api/staff/:id', staffController.deleteStaff);
+router.delete('/api/staff/:salonId/:staffId', verifyToken, staffController.deleteStaff);
 
 module.exports = router;
