@@ -14,7 +14,7 @@ class StaffService {
   };
 
   // 스태프 추가
-  async createstaff(name, position, career_years, salon_id) {
+  async createStaff(name, position, career_years, salon_id) {
     return Staff.create({
       name,
       position,
@@ -48,6 +48,9 @@ class StaffService {
   
       await staff.destroy({ transaction });
       await transaction.commit();
+      
+      // 삭제된 스태프 반환
+      return staff;
     } catch (error) {
       await transaction.rollback();
       throw error;

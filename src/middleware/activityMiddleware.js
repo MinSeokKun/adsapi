@@ -1,3 +1,4 @@
+const { DELETE } = require('sequelize/lib/query-types');
 const userActivityService = require('../services/userActivityService');
 
 /**
@@ -137,6 +138,11 @@ exports.ACTIVITY_TYPES = {
   ADMIN_LOGIN: 'admin_login',
   ADMIN_USER_UPDATE: 'admin_user_update',
   ADMIN_SALON_UPDATE: 'admin_salon_update',
+
+  // 스태프 활동
+  STAFF_CREATED: 'staff_created',
+  STAFF_UPDATED: 'staff_updated',
+  STAFF_DELETED: 'staff_deleted'
 
 };
 
